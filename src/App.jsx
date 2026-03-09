@@ -1,0 +1,1958 @@
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useProjects, useTagColors, useAppSettings } from "./hooks";
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+
+const LOGO_SRC = "data:image/png;base64,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";
+
+const COLORS = {
+  bg: "#0A0A0A",
+  surface: "#151515",
+  surfaceHover: "#1C1C1C",
+  surfaceActive: "#242424",
+  border: "#2C2C2C",
+  borderLight: "#3A3A3A",
+  text: "#F0F0F0",
+  textMuted: "#A0A0A0",
+  textDim: "#707070",
+  accent: "#7ACF85",
+  accentDim: "#5BB866",
+  accentGlow: "rgba(122,207,133,0.08)",
+  danger: "#CF5C5C",
+  success: "#7ACF85",
+  blue: "#5B9BCF",
+  purple: "#9B7ADB",
+  orange: "#D98C4A",
+};
+
+const STATUS_CONFIG = {
+  backlog: { label: "Backlog", color: COLORS.textDim, dot: "#555" },
+  planned: { label: "Planned", color: COLORS.blue, dot: COLORS.blue },
+  active: { label: "Active", color: COLORS.accent, dot: COLORS.accent },
+  review: { label: "Review", color: COLORS.purple, dot: COLORS.purple },
+  done: { label: "Done", color: COLORS.success, dot: COLORS.success },
+};
+
+const PRIORITY_CONFIG = {
+  low: { label: "Low", color: COLORS.textMuted },
+  medium: { label: "Medium", color: COLORS.orange },
+  high: { label: "High", color: COLORS.danger },
+  urgent: { label: "Urgent", color: "#FF4444" },
+};
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+const uid = () => crypto.randomUUID?.() || Math.random().toString(36).slice(2);
+
+const formatDate = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
+
+const formatDateFull = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const toInputDate = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  return date.toISOString().split("T")[0];
+};
+
+const daysBetween = (a, b) => {
+  const d1 = new Date(a);
+  const d2 = new Date(b);
+  return Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24));
+};
+
+const addDays = (date, days) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+};
+
+
+// ─── Icons (inline SVG) ──────────────────────────────────────────────────────
+const Icon = ({ name, size = 16, color = "currentColor", style = {} }) => {
+  const icons = {
+    plus: (
+      <path
+        d="M12 5v14M5 12h14"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    ),
+    calendar: (
+      <>
+        <rect
+          x="3"
+          y="4"
+          width="18"
+          height="18"
+          rx="2"
+          stroke={color}
+          strokeWidth="1.5"
+          fill="none"
+        />
+        <path d="M16 2v4M8 2v4M3 10h18" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </>
+    ),
+    timeline: (
+      <>
+        <path d="M4 6h16M4 12h10M4 18h14" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      </>
+    ),
+    grid: (
+      <>
+        <rect x="3" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5" fill="none" />
+        <rect x="14" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5" fill="none" />
+        <rect x="3" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5" fill="none" />
+        <rect x="14" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5" fill="none" />
+      </>
+    ),
+    x: (
+      <path
+        d="M18 6L6 18M6 6l12 12"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    ),
+    chevronLeft: (
+      <path d="M15 18l-6-6 6-6" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    ),
+    chevronRight: (
+      <path d="M9 18l6-6-6-6" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    ),
+    edit: (
+      <path
+        d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+        stroke={color}
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    ),
+    trash: (
+      <>
+        <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke={color} strokeWidth="1.5" fill="none" />
+      </>
+    ),
+    search: (
+      <>
+        <circle cx="11" cy="11" r="8" stroke={color} strokeWidth="1.5" fill="none" />
+        <path d="M21 21l-4.35-4.35" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </>
+    ),
+    filter: (
+      <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    ),
+  };
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      style={{ flexShrink: 0, ...style }}
+    >
+      {icons[name]}
+    </svg>
+  );
+};
+
+// ─── Tag Color Palette ───────────────────────────────────────────────────────
+const TAG_PALETTE = [
+  { id: "green", color: "#7ACF85", label: "Green" },
+  { id: "blue", color: "#5B9BCF", label: "Blue" },
+  { id: "purple", color: "#9B7ADB", label: "Purple" },
+  { id: "orange", color: "#D98C4A", label: "Orange" },
+  { id: "red", color: "#CF5C5C", label: "Red" },
+  { id: "yellow", color: "#CFBF4A", label: "Yellow" },
+  { id: "pink", color: "#CF6B9B", label: "Pink" },
+  { id: "teal", color: "#4ABFCF", label: "Teal" },
+  { id: "gray", color: "#808080", label: "Gray" },
+];
+
+// ─── Tag Component ───────────────────────────────────────────────────────────
+const Tag = ({ label, onRemove, color }) => (
+  <span
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 4,
+      padding: "2px 8px",
+      background: color ? `${color}20` : COLORS.surfaceActive,
+      border: color ? `1px solid ${color}40` : `1px solid transparent`,
+      borderRadius: 4,
+      fontSize: 11,
+      color: color || COLORS.textMuted,
+      fontWeight: color ? 500 : 400,
+      letterSpacing: "0.02em",
+    }}
+  >
+    {label}
+    {onRemove && (
+      <span
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        style={{ cursor: "pointer", opacity: 0.6, marginLeft: 2 }}
+      >
+        ×
+      </span>
+    )}
+  </span>
+);
+
+// ─── Status Badge ────────────────────────────────────────────────────────────
+const StatusBadge = ({ status, small }) => {
+  const cfg = STATUS_CONFIG[status];
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: small ? "2px 6px" : "3px 10px",
+        background: `${cfg.color}22`,
+        borderRadius: 4,
+        fontSize: small ? 10 : 11,
+        color: cfg.color,
+        fontWeight: 500,
+        letterSpacing: "0.03em",
+        textTransform: "uppercase",
+      }}
+    >
+      <span
+        style={{
+          width: small ? 5 : 6,
+          height: small ? 5 : 6,
+          borderRadius: "50%",
+          background: cfg.dot,
+        }}
+      />
+      {cfg.label}
+    </span>
+  );
+};
+
+// ─── Priority Badge ──────────────────────────────────────────────────────────
+const PriorityBadge = ({ priority }) => {
+  const cfg = PRIORITY_CONFIG[priority];
+  return (
+    <span
+      style={{
+        fontSize: 10,
+        color: cfg.color,
+        fontWeight: 600,
+        letterSpacing: "0.05em",
+        textTransform: "uppercase",
+      }}
+    >
+      {cfg.label}
+    </span>
+  );
+};
+
+// ─── Project Card ────────────────────────────────────────────────────────────
+const ProjectCard = ({ project, onClick, compact, visibleFields = {}, customFields = [], tagColors = {} }) => {
+  const [hovered, setHovered] = useState(false);
+  const vf = { ...DEFAULT_VISIBLE_FIELDS, ...visibleFields };
+  const progress = project.endDate && project.dateMode !== "single"
+    ? Math.min(100, Math.max(0, ((Date.now() - new Date(project.startDate)) / (new Date(project.endDate) - new Date(project.startDate))) * 100))
+    : 0;
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: hovered ? COLORS.surfaceHover : COLORS.surface,
+        border: `1px solid ${hovered ? COLORS.borderLight : COLORS.border}`,
+        borderRadius: 8,
+        padding: compact ? 14 : 18,
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+        transform: hovered ? "translateY(-1px)" : "none",
+        boxShadow: hovered ? "0 4px 20px rgba(0,0,0,0.3)" : "none",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+        <h3 style={{ fontSize: compact ? 14 : 15, fontWeight: 600, color: COLORS.text, margin: 0, lineHeight: 1.3, flex: 1 }}>
+          {project.title}
+        </h3>
+        {vf.priority && <PriorityBadge priority={project.priority} />}
+      </div>
+
+      {vf.description && !compact && project.description && (
+        <p style={{ fontSize: 13, color: COLORS.textMuted, margin: "0 0 12px", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+          {project.description}
+        </p>
+      )}
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        {vf.status && <StatusBadge status={project.status} small />}
+        {vf.dates && project.startDate && (
+          <span style={{ fontSize: 12, color: COLORS.textMuted }}>
+            {project.dateMode === "single"
+              ? formatDate(project.startDate)
+              : `${formatDate(project.startDate)} → ${formatDate(project.endDate)}`}
+          </span>
+        )}
+      </div>
+
+      {vf.dates && project.endDate && project.dateMode !== "single" && project.status !== "done" && project.status !== "backlog" && (
+        <div style={{ marginTop: 10, height: 3, background: COLORS.border, borderRadius: 2, overflow: "hidden" }}>
+          <div
+            style={{
+              height: "100%",
+              width: `${progress}%`,
+              background: `linear-gradient(90deg, ${STATUS_CONFIG[project.status].color}, ${STATUS_CONFIG[project.status].color}88)`,
+              borderRadius: 2,
+              transition: "width 0.3s ease",
+            }}
+          />
+        </div>
+      )}
+
+      {vf.tags && project.tags?.length > 0 && (
+        <div style={{ display: "flex", gap: 4, marginTop: 10, flexWrap: "wrap" }}>
+          {project.tags.map((t) => (
+            <Tag key={t} label={t} color={tagColors[t]} />
+          ))}
+        </div>
+      )}
+
+      {vf.notes && project.notes && (
+        <p style={{ fontSize: 11, color: COLORS.textDim, margin: "8px 0 0", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden", fontStyle: "italic" }}>
+          {project.notes}
+        </p>
+      )}
+
+      {/* Custom fields */}
+      {customFields.filter((f) => f.visible).map((f) => {
+        const val = project.customFields?.[f.id];
+        if (val === undefined || val === "" || val === null) return null;
+        return (
+          <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+            <span style={{ fontSize: 10, color: COLORS.textDim, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.04em" }}>{f.name}:</span>
+            <span style={{ fontSize: 12, color: COLORS.textMuted }}>
+              {f.type === "checkbox" ? (val ? "Yes" : "No") : f.type === "url" ? <span style={{ color: COLORS.accent }}>{val}</span> : String(val)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ─── Tag Dropdown Input ──────────────────────────────────────────────────────
+const TagDropdownInput = ({ value, onChange, onAdd, allTags, currentTags, tagColors, onUpdateTagColor, onSelectTag, inputStyle }) => {
+  const [open, setOpen] = useState(false);
+  const [colorMenuTag, setColorMenuTag] = useState(null);
+  const ref = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setColorMenuTag(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = allTags.filter(
+    (t) => !currentTags.includes(t) && (!value || t.includes(value.toLowerCase()))
+  );
+
+  const handleSelect = (tag) => {
+    onSelectTag(tag);
+    onChange("");
+    setOpen(false);
+  };
+
+  const handleCreate = () => {
+    if (value.trim()) {
+      onAdd();
+      setOpen(false);
+    }
+  };
+
+  const isNew = value.trim() && !allTags.includes(value.trim().toLowerCase());
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          value={value}
+          onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (isNew) handleCreate();
+              else if (filtered.length === 1) handleSelect(filtered[0]);
+            }
+          }}
+          placeholder="Search or create tag..."
+          style={{ ...inputStyle, flex: 1 }}
+        />
+      </div>
+
+      {/* Dropdown */}
+      {open && (filtered.length > 0 || isNew) && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4,
+          background: COLORS.surface, border: `1px solid ${COLORS.borderLight}`, borderRadius: 8,
+          boxShadow: "0 12px 40px rgba(0,0,0,0.5)", zIndex: 50, maxHeight: 240, overflow: "auto",
+        }}>
+          {/* Create new */}
+          {isNew && (
+            <div
+              onClick={handleCreate}
+              style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "10px 12px",
+                cursor: "pointer", borderBottom: `1px solid ${COLORS.border}`,
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = COLORS.surfaceHover}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              <Icon name="plus" size={14} color={COLORS.accent} />
+              <span style={{ fontSize: 13, color: COLORS.accent, fontWeight: 500 }}>
+                Create "{value.trim().toLowerCase()}"
+              </span>
+            </div>
+          )}
+
+          {/* Existing tags */}
+          {filtered.map((tag) => (
+            <div
+              key={tag}
+              style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
+                cursor: "pointer", position: "relative",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = COLORS.surfaceHover}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              <div onClick={() => handleSelect(tag)} style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                {tagColors[tag] && (
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: tagColors[tag], flexShrink: 0 }} />
+                )}
+                <span style={{ fontSize: 13, color: COLORS.text }}>{tag}</span>
+              </div>
+
+              {/* 3-dot menu */}
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setColorMenuTag(colorMenuTag === tag ? null : tag);
+                }}
+                style={{
+                  cursor: "pointer", padding: "2px 4px", borderRadius: 4, fontSize: 16,
+                  color: COLORS.textDim, lineHeight: 1, letterSpacing: 1,
+                  display: "flex", alignItems: "center",
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = COLORS.text}
+                onMouseLeave={(e) => e.currentTarget.style.color = COLORS.textDim}
+              >
+                ···
+              </span>
+
+              {/* Inline color picker popover */}
+              {colorMenuTag === tag && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: "absolute", right: 8, top: "100%", zIndex: 60,
+                    background: COLORS.surface, border: `1px solid ${COLORS.borderLight}`, borderRadius: 8,
+                    padding: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                    display: "flex", gap: 5, flexWrap: "wrap", width: 180,
+                  }}
+                >
+                  {TAG_PALETTE.map((p) => (
+                    <span
+                      key={p.id}
+                      onClick={() => {
+                        onUpdateTagColor(tag, p.color);
+                        setColorMenuTag(null);
+                      }}
+                      style={{
+                        width: 24, height: 24, borderRadius: "50%", background: p.color, cursor: "pointer",
+                        border: tagColors[tag] === p.color ? "2px solid #fff" : "2px solid transparent",
+                        transition: "border 0.1s, transform 0.1s",
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.15)"}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+                      title={p.label}
+                    />
+                  ))}
+                  {tagColors[tag] && (
+                    <span
+                      onClick={() => {
+                        onUpdateTagColor(tag, null);
+                        setColorMenuTag(null);
+                      }}
+                      style={{
+                        width: 24, height: 24, borderRadius: "50%", cursor: "pointer",
+                        border: `1px dashed ${COLORS.textDim}`, display: "flex", alignItems: "center",
+                        justifyContent: "center", fontSize: 12, color: COLORS.textDim,
+                      }}
+                      title="Remove color"
+                    >
+                      ×
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Project Detail / Editor Modal ───────────────────────────────────────────
+const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], tagColors = {}, allTags = [], onUpdateTagColor }) => {
+  const [form, setForm] = useState(
+    project || {
+      id: uid(),
+      title: "",
+      description: "",
+      status: "backlog",
+      priority: "medium",
+      dateMode: "range",
+      startDate: addDays(new Date(), 0),
+      endDate: addDays(new Date(), 14),
+      tags: [],
+      notes: "",
+      customFields: {},
+      created: new Date().toISOString().split("T")[0],
+    }
+  );
+  const [tagInput, setTagInput] = useState("");
+  const isNew = !project;
+
+  const update = (key, val) => setForm((p) => ({ ...p, [key]: val }));
+
+  const handleSave = () => {
+    if (!form.title.trim()) return;
+    onSave(form);
+  };
+
+  const addTag = () => {
+    const tag = tagInput.trim().toLowerCase();
+    if (tag && !form.tags.includes(tag)) {
+      update("tags", [...form.tags, tag]);
+    }
+    setTagInput("");
+  };
+
+  const selectStyle = {
+    background: COLORS.surfaceActive,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: 6,
+    padding: "8px 12px",
+    color: COLORS.text,
+    fontSize: 13,
+    outline: "none",
+    width: "100%",
+    appearance: "none",
+    cursor: "pointer",
+  };
+
+  const inputStyle = {
+    background: COLORS.surfaceActive,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: 6,
+    padding: "8px 12px",
+    color: COLORS.text,
+    fontSize: 13,
+    outline: "none",
+    width: "100%",
+    boxSizing: "border-box",
+  };
+
+  const labelStyle = {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: 600,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    marginBottom: 6,
+    display: "block",
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.7)",
+        backdropFilter: "blur(8px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: COLORS.surface,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 12,
+          width: "100%",
+          maxWidth: 580,
+          maxHeight: "90vh",
+          overflow: "auto",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${COLORS.border}` }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: COLORS.text }}>
+            {isNew ? "New Project" : "Edit Project"}
+          </h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: COLORS.textMuted }}>
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Title */}
+          <div>
+            <label style={labelStyle}>Project Name</label>
+            <input
+              value={form.title}
+              onChange={(e) => update("title", e.target.value)}
+              placeholder="What are you building?"
+              style={{ ...inputStyle, fontSize: 16, fontWeight: 500, padding: "10px 12px" }}
+              autoFocus
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label style={labelStyle}>Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => update("description", e.target.value)}
+              placeholder="Brief overview..."
+              rows={3}
+              style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+            />
+          </div>
+
+          {/* Status & Priority Row */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Status</label>
+              <select value={form.status} onChange={(e) => update("status", e.target.value)} style={selectStyle}>
+                {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Priority</label>
+              <select value={form.priority} onChange={(e) => update("priority", e.target.value)} style={selectStyle}>
+                {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Date Mode Toggle + Dates */}
+          <div>
+            <label style={labelStyle}>Date Type</label>
+            <div style={{ display: "flex", gap: 2, background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden", marginBottom: 12, width: "fit-content" }}>
+              {[{ key: "single", label: "Single Date" }, { key: "range", label: "Date Range" }].map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => {
+                    update("dateMode", opt.key);
+                    if (opt.key === "single") update("endDate", form.startDate);
+                  }}
+                  style={{
+                    background: (form.dateMode || "range") === opt.key ? COLORS.bg : "transparent",
+                    border: "none",
+                    padding: "6px 14px",
+                    cursor: "pointer",
+                    color: (form.dateMode || "range") === opt.key ? COLORS.accent : COLORS.textDim,
+                    fontSize: 12,
+                    fontWeight: (form.dateMode || "range") === opt.key ? 600 : 400,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {(form.dateMode || "range") === "single" ? (
+              <div>
+                <label style={labelStyle}>Date</label>
+                <input
+                  type="date"
+                  value={toInputDate(form.startDate)}
+                  onChange={(e) => { update("startDate", e.target.value); update("endDate", e.target.value); }}
+                  style={inputStyle}
+                />
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Start Date</label>
+                  <input
+                    type="date"
+                    value={toInputDate(form.startDate)}
+                    onChange={(e) => update("startDate", e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>End Date</label>
+                  <input
+                    type="date"
+                    value={toInputDate(form.endDate)}
+                    onChange={(e) => update("endDate", e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label style={labelStyle}>Tags</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: form.tags.length ? 8 : 0 }}>
+              {form.tags.map((t) => (
+                <Tag key={t} label={t} color={tagColors[t]} onRemove={() => update("tags", form.tags.filter((x) => x !== t))} />
+              ))}
+            </div>
+            <TagDropdownInput
+              value={tagInput}
+              onChange={setTagInput}
+              onAdd={addTag}
+              allTags={allTags}
+              currentTags={form.tags}
+              tagColors={tagColors}
+              onUpdateTagColor={onUpdateTagColor}
+              onSelectTag={(tag) => {
+                if (!form.tags.includes(tag)) update("tags", [...form.tags, tag]);
+              }}
+              inputStyle={inputStyle}
+            />
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label style={labelStyle}>Notes</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => update("notes", e.target.value)}
+              placeholder="Internal notes, links, ideas..."
+              rows={4}
+              style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+            />
+          </div>
+
+          {/* Custom Fields */}
+          {customFields.length > 0 && (
+            <div>
+              <label style={{ ...labelStyle, marginBottom: 12 }}>Custom Fields</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {customFields.map((f) => {
+                  const cfVals = form.customFields || {};
+                  const val = cfVals[f.id] ?? (f.type === "checkbox" ? false : "");
+                  const updateCF = (v) => update("customFields", { ...cfVals, [f.id]: v });
+
+                  return (
+                    <div key={f.id}>
+                      <label style={{ ...labelStyle, fontSize: 10, marginBottom: 4 }}>{f.name}</label>
+                      {f.type === "text" || f.type === "url" ? (
+                        <input value={val} onChange={(e) => updateCF(e.target.value)} placeholder={f.type === "url" ? "https://..." : `Enter ${f.name.toLowerCase()}...`} style={inputStyle} />
+                      ) : f.type === "number" ? (
+                        <input type="number" value={val} onChange={(e) => updateCF(e.target.value)} style={inputStyle} />
+                      ) : f.type === "date" ? (
+                        <input type="date" value={val} onChange={(e) => updateCF(e.target.value)} style={inputStyle} />
+                      ) : f.type === "select" ? (
+                        <select value={val} onChange={(e) => updateCF(e.target.value)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+                          <option value="">Select...</option>
+                          {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      ) : f.type === "checkbox" ? (
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                          <input type="checkbox" checked={!!val} onChange={(e) => updateCF(e.target.checked)} style={{ accentColor: COLORS.accent, width: 16, height: 16 }} />
+                          <span style={{ fontSize: 13, color: COLORS.text }}>{val ? "Yes" : "No"}</span>
+                        </label>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: "flex", justifyContent: "space-between", padding: "16px 20px", borderTop: `1px solid ${COLORS.border}` }}>
+          <div>
+            {!isNew && (
+              <button
+                onClick={() => { onDelete(form.id); onClose(); }}
+                style={{
+                  background: "none",
+                  border: `1px solid ${COLORS.danger}33`,
+                  borderRadius: 6,
+                  padding: "8px 14px",
+                  color: COLORS.danger,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Icon name="trash" size={14} color={COLORS.danger} />
+                Delete
+              </button>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 6,
+                padding: "8px 18px",
+                color: COLORS.textMuted,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              style={{
+                background: COLORS.accent,
+                border: "none",
+                borderRadius: 6,
+                padding: "8px 22px",
+                color: COLORS.bg,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {isNew ? "Create Project" : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Board View ──────────────────────────────────────────────────────────────
+const BoardView = ({ projects, onSelect, visibleFields, customFields, tagColors }) => {
+  const columns = Object.keys(STATUS_CONFIG);
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${columns.length}, minmax(200px, 1fr))`,
+        gap: 12,
+        overflowX: "auto",
+        padding: "0 0 20px",
+        minHeight: 400,
+      }}
+    >
+      {columns.map((status) => {
+        const items = projects.filter((p) => p.status === status);
+        return (
+          <div key={status}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "0 4px" }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: STATUS_CONFIG[status].dot,
+                }}
+              />
+              <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.textMuted, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                {STATUS_CONFIG[status].label}
+              </span>
+              <span style={{ fontSize: 11, color: COLORS.textDim, marginLeft: "auto" }}>{items.length}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {items.map((p) => (
+                <ProjectCard key={p.id} project={p} onClick={() => onSelect(p)} compact visibleFields={visibleFields} customFields={customFields} tagColors={tagColors} />
+              ))}
+              {items.length === 0 && (
+                <div style={{ padding: 20, textAlign: "center", color: COLORS.textDim, fontSize: 12, border: `1px dashed ${COLORS.border}`, borderRadius: 8 }}>
+                  No projects
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ─── Timeline View ───────────────────────────────────────────────────────────
+const TimelineView = ({ projects, onSelect }) => {
+  const [offset, setOffset] = useState(0);
+  const daysToShow = 42;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 7 + offset);
+
+  const days = Array.from({ length: daysToShow }, (_, i) => {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  const sorted = [...projects]
+    .filter((p) => p.startDate && p.endDate)
+    .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+
+  const dayWidth = 32;
+  const rowHeight = 40;
+  const headerHeight = 50;
+
+  const getPosition = (dateStr) => {
+    const d = new Date(dateStr);
+    d.setHours(0, 0, 0, 0);
+    const diffDays = (d - startDate) / (1000 * 60 * 60 * 24);
+    return diffDays * dayWidth;
+  };
+
+  const todayX = getPosition(today.toISOString());
+
+  return (
+    <div>
+      {/* Navigation */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <button
+          onClick={() => setOffset((o) => o - 14)}
+          style={{ background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer", color: COLORS.textMuted }}
+        >
+          <Icon name="chevronLeft" size={14} />
+        </button>
+        <button
+          onClick={() => setOffset(0)}
+          style={{ background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 14px", cursor: "pointer", color: COLORS.textMuted, fontSize: 12 }}
+        >
+          Today
+        </button>
+        <button
+          onClick={() => setOffset((o) => o + 14)}
+          style={{ background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer", color: COLORS.textMuted }}
+        >
+          <Icon name="chevronRight" size={14} />
+        </button>
+        <span style={{ fontSize: 12, color: COLORS.textDim }}>
+          {formatDateFull(days[0])} — {formatDateFull(days[days.length - 1])}
+        </span>
+      </div>
+
+      {/* Timeline */}
+      <div style={{ overflowX: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: COLORS.surface }}>
+        <div style={{ position: "relative", minWidth: daysToShow * dayWidth, height: headerHeight + sorted.length * rowHeight + 20 }}>
+          {/* Day headers */}
+          <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, height: headerHeight }}>
+            {days.map((d, i) => {
+              const isToday = d.toDateString() === today.toDateString();
+              const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+              const isFirstOfMonth = d.getDate() === 1;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    width: dayWidth,
+                    minWidth: dayWidth,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 2,
+                    borderRight: isFirstOfMonth ? `1px solid ${COLORS.borderLight}` : "none",
+                    background: isToday ? COLORS.accentGlow : isWeekend ? "rgba(255,255,255,0.015)" : "transparent",
+                  }}
+                >
+                  <span style={{ fontSize: 9, color: COLORS.textDim, textTransform: "uppercase" }}>
+                    {d.toLocaleDateString("en", { weekday: "short" }).slice(0, 2)}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: isToday ? 700 : 400,
+                      color: isToday ? COLORS.accent : COLORS.textMuted,
+                      width: 22,
+                      height: 22,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: "50%",
+                      background: isToday ? `${COLORS.accent}22` : "transparent",
+                    }}
+                  >
+                    {d.getDate()}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Today line */}
+          {todayX >= 0 && todayX <= daysToShow * dayWidth && (
+            <div
+              style={{
+                position: "absolute",
+                left: todayX + dayWidth / 2,
+                top: headerHeight,
+                bottom: 0,
+                width: 1,
+                background: COLORS.accent,
+                opacity: 0.4,
+                zIndex: 5,
+              }}
+            />
+          )}
+
+          {/* Project bars / markers */}
+          {sorted.map((project, i) => {
+            const left = getPosition(project.startDate);
+            const cfg = STATUS_CONFIG[project.status];
+            const isSingle = project.dateMode === "single";
+
+            if (isSingle) {
+              const markerSize = 20;
+              return (
+                <div
+                  key={project.id}
+                  onClick={() => onSelect(project)}
+                  style={{
+                    position: "absolute",
+                    top: headerHeight + i * rowHeight + 6,
+                    left: Math.max(left + dayWidth / 2 - markerSize / 2, 0),
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    cursor: "pointer",
+                    zIndex: 10,
+                    height: rowHeight - 12,
+                  }}
+                >
+                  <div style={{
+                    width: markerSize,
+                    height: markerSize,
+                    background: cfg.color,
+                    borderRadius: 4,
+                    transform: "rotate(45deg)",
+                    flexShrink: 0,
+                  }} />
+                  <span style={{ fontSize: 11, fontWeight: 500, color: COLORS.text, whiteSpace: "nowrap" }}>
+                    {project.title}
+                  </span>
+                </div>
+              );
+            }
+
+            const right = getPosition(project.endDate);
+            const width = Math.max(right - left, dayWidth);
+
+            return (
+              <div
+                key={project.id}
+                onClick={() => onSelect(project)}
+                style={{
+                  position: "absolute",
+                  top: headerHeight + i * rowHeight + 6,
+                  left: Math.max(left, 0),
+                  width: width,
+                  height: rowHeight - 12,
+                  background: `${cfg.color}18`,
+                  border: `1px solid ${cfg.color}44`,
+                  borderRadius: 5,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "0 8px",
+                  overflow: "hidden",
+                  transition: "all 0.15s ease",
+                  zIndex: 10,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = `${cfg.color}28`;
+                  e.currentTarget.style.transform = "scaleY(1.1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = `${cfg.color}18`;
+                  e.currentTarget.style.transform = "none";
+                }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 500, color: COLORS.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {project.title}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Calendar View ───────────────────────────────────────────────────────────
+const CalendarView = ({ projects, onSelect }) => {
+  const [viewDate, setViewDate] = useState(new Date());
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startPad = firstDay.getDay();
+  const totalDays = lastDay.getDate();
+
+  const cells = [];
+  for (let i = 0; i < startPad; i++) cells.push(null);
+  for (let i = 1; i <= totalDays; i++) cells.push(i);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const getProjectsForDay = (day) => {
+    if (!day) return [];
+    const date = new Date(year, month, day);
+    date.setHours(0, 0, 0, 0);
+    return projects.filter((p) => {
+      if (!p.startDate) return false;
+      const s = new Date(p.startDate);
+      s.setHours(0, 0, 0, 0);
+      const e = p.endDate ? new Date(p.endDate) : s;
+      e.setHours(0, 0, 0, 0);
+      return date >= s && date <= e;
+    });
+  };
+
+  const navMonth = (dir) => {
+    setViewDate(new Date(year, month + dir, 1));
+  };
+
+  return (
+    <div>
+      {/* Navigation */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <button onClick={() => navMonth(-1)} style={{ background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer", color: COLORS.textMuted }}>
+          <Icon name="chevronLeft" size={14} />
+        </button>
+        <span style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, minWidth: 160, textAlign: "center" }}>
+          {viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+        </span>
+        <button onClick={() => navMonth(1)} style={{ background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 10px", cursor: "pointer", color: COLORS.textMuted }}>
+          <Icon name="chevronRight" size={14} />
+        </button>
+      </div>
+
+      {/* Grid */}
+      <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, overflow: "hidden", background: COLORS.surface }}>
+        {/* Weekday headers */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: `1px solid ${COLORS.border}` }}>
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+            <div key={d} style={{ padding: "8px 4px", textAlign: "center", fontSize: 11, fontWeight: 600, color: COLORS.textDim, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Day cells */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+          {cells.map((day, i) => {
+            const isToday = day && new Date(year, month, day).toDateString() === today.toDateString();
+            const dayProjects = getProjectsForDay(day);
+
+            return (
+              <div
+                key={i}
+                style={{
+                  minHeight: 90,
+                  padding: 6,
+                  borderRight: (i + 1) % 7 !== 0 ? `1px solid ${COLORS.border}` : "none",
+                  borderBottom: `1px solid ${COLORS.border}`,
+                  background: isToday ? COLORS.accentGlow : day ? "transparent" : "rgba(255,255,255,0.01)",
+                }}
+              >
+                {day && (
+                  <>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        fontSize: 12,
+                        fontWeight: isToday ? 700 : 400,
+                        color: isToday ? COLORS.accent : COLORS.textMuted,
+                        background: isToday ? `${COLORS.accent}22` : "transparent",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {day}
+                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      {dayProjects.slice(0, 3).map((p) => (
+                        <div
+                          key={p.id}
+                          onClick={() => onSelect(p)}
+                          style={{
+                            padding: "2px 5px",
+                            background: `${STATUS_CONFIG[p.status].color}20`,
+                            borderLeft: `2px solid ${STATUS_CONFIG[p.status].color}`,
+                            borderRadius: 2,
+                            fontSize: 10,
+                            color: COLORS.text,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {p.title}
+                        </div>
+                      ))}
+                      {dayProjects.length > 3 && (
+                        <span style={{ fontSize: 9, color: COLORS.textDim, paddingLeft: 5 }}>
+                          +{dayProjects.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── List View ───────────────────────────────────────────────────────────────
+const ListView = ({ projects, onSelect }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    {/* Header */}
+    <div style={{ display: "grid", gridTemplateColumns: "2fr 100px 80px 140px 1fr", gap: 12, padding: "8px 14px", borderBottom: `1px solid ${COLORS.border}` }}>
+      {["Project", "Status", "Priority", "Date", "Tags"].map((h) => (
+        <span key={h} style={{ fontSize: 10, fontWeight: 600, color: COLORS.textDim, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+          {h}
+        </span>
+      ))}
+    </div>
+
+    {projects.map((p) => (
+      <div
+        key={p.id}
+        onClick={() => onSelect(p)}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 100px 80px 140px 1fr",
+          gap: 12,
+          padding: "10px 14px",
+          cursor: "pointer",
+          borderRadius: 6,
+          transition: "background 0.15s",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceHover)}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+      >
+        <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {p.title}
+        </span>
+        <StatusBadge status={p.status} small />
+        <PriorityBadge priority={p.priority} />
+        <span style={{ fontSize: 12, color: COLORS.textDim }}>
+          {p.startDate
+            ? p.dateMode === "single"
+              ? formatDate(p.startDate)
+              : `${formatDate(p.startDate)} → ${formatDate(p.endDate)}`
+            : "—"}
+        </span>
+        <div style={{ display: "flex", gap: 4, overflow: "hidden" }}>
+          {p.tags.slice(0, 3).map((t) => (
+            <Tag key={t} label={t} />
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+// ─── Default field types ─────────────────────────────────────────────────────
+const FIELD_TYPES = {
+  text: { label: "Text", icon: "edit" },
+  number: { label: "Number", icon: "edit" },
+  date: { label: "Date", icon: "calendar" },
+  select: { label: "Select", icon: "filter" },
+  checkbox: { label: "Checkbox", icon: "grid" },
+  url: { label: "URL", icon: "edit" },
+};
+
+const DEFAULT_VISIBLE_FIELDS = {
+  description: true,
+  status: true,
+  priority: true,
+  dates: true,
+  tags: true,
+  notes: false,
+};
+
+// ─── Field Visibility Settings Modal ─────────────────────────────────────────
+const FieldSettingsModal = ({ visibleFields, customFields, onUpdateVisible, onAddField, onRemoveField, onClose }) => {
+  const [newFieldName, setNewFieldName] = useState("");
+  const [newFieldType, setNewFieldType] = useState("text");
+  const [newFieldOptions, setNewFieldOptions] = useState("");
+
+  const handleAdd = () => {
+    if (!newFieldName.trim()) return;
+    const id = newFieldName.trim().toLowerCase().replace(/\s+/g, "_");
+    if (customFields.find((f) => f.id === id)) return;
+    onAddField({
+      id,
+      name: newFieldName.trim(),
+      type: newFieldType,
+      options: newFieldType === "select" ? newFieldOptions.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      visible: true,
+    });
+    setNewFieldName("");
+    setNewFieldOptions("");
+  };
+
+  const inputStyle = {
+    background: COLORS.surfaceActive,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: 6,
+    padding: "8px 12px",
+    color: COLORS.text,
+    fontSize: 13,
+    outline: "none",
+    width: "100%",
+    boxSizing: "border-box",
+  };
+
+  const labelStyle = {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: 600,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    marginBottom: 6,
+    display: "block",
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 12,
+          width: "100%", maxWidth: 480, maxHeight: "90vh", overflow: "auto",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${COLORS.border}` }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: COLORS.text }}>Field Settings</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: COLORS.textMuted }}>
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+
+        <div style={{ padding: 20 }}>
+          {/* Card visibility toggles */}
+          <label style={labelStyle}>Show on Cards</label>
+          <p style={{ fontSize: 12, color: COLORS.textDim, margin: "0 0 12px" }}>Choose which fields appear on project cards in the main view.</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 24 }}>
+            {Object.entries(DEFAULT_VISIBLE_FIELDS).map(([key]) => (
+              <label
+                key={key}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+                  background: COLORS.surfaceActive, borderRadius: 6, cursor: "pointer",
+                  border: `1px solid ${visibleFields[key] ? COLORS.accent + "44" : COLORS.border}`,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={visibleFields[key] ?? DEFAULT_VISIBLE_FIELDS[key]}
+                  onChange={(e) => onUpdateVisible(key, e.target.checked)}
+                  style={{ accentColor: COLORS.accent, width: 16, height: 16 }}
+                />
+                <span style={{ fontSize: 13, color: COLORS.text, textTransform: "capitalize" }}>{key}</span>
+              </label>
+            ))}
+            {customFields.map((f) => (
+              <label
+                key={f.id}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+                  background: COLORS.surfaceActive, borderRadius: 6, cursor: "pointer",
+                  border: `1px solid ${f.visible ? COLORS.accent + "44" : COLORS.border}`,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={f.visible}
+                  onChange={(e) => onUpdateVisible(`custom_${f.id}`, e.target.checked)}
+                  style={{ accentColor: COLORS.accent, width: 16, height: 16 }}
+                />
+                <span style={{ fontSize: 13, color: COLORS.text, flex: 1 }}>{f.name}</span>
+                <span style={{ fontSize: 10, color: COLORS.textDim, textTransform: "uppercase" }}>{f.type}</span>
+                <span
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemoveField(f.id); }}
+                  style={{ color: COLORS.danger, cursor: "pointer", fontSize: 12, padding: "2px 4px" }}
+                >
+                  <Icon name="trash" size={13} color={COLORS.danger} />
+                </span>
+              </label>
+            ))}
+          </div>
+
+          {/* Add custom field */}
+          <label style={labelStyle}>Add Custom Field</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 8 }}>
+              <input
+                value={newFieldName}
+                onChange={(e) => setNewFieldName(e.target.value)}
+                placeholder="Field name..."
+                style={inputStyle}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              />
+              <select
+                value={newFieldType}
+                onChange={(e) => setNewFieldType(e.target.value)}
+                style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
+              >
+                {Object.entries(FIELD_TYPES).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+            {newFieldType === "select" && (
+              <input
+                value={newFieldOptions}
+                onChange={(e) => setNewFieldOptions(e.target.value)}
+                placeholder="Options (comma separated)..."
+                style={inputStyle}
+              />
+            )}
+            <button
+              onClick={handleAdd}
+              style={{
+                background: COLORS.accent, border: "none", borderRadius: 6, padding: "8px 18px",
+                color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer", alignSelf: "flex-start",
+              }}
+            >
+              Add Field
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Tag Manager Modal ───────────────────────────────────────────────────────
+const TagManagerModal = ({ tagColors, allTags, onUpdate, onClose }) => {
+  const [newTag, setNewTag] = useState("");
+  const [newColor, setNewColor] = useState(TAG_PALETTE[0].color);
+
+  const handleAdd = () => {
+    const tag = newTag.trim().toLowerCase();
+    if (!tag) return;
+    onUpdate({ ...tagColors, [tag]: newColor });
+    setNewTag("");
+  };
+
+  const handleColorChange = (tag, color) => {
+    onUpdate({ ...tagColors, [tag]: color });
+  };
+
+  const handleRemoveColor = (tag) => {
+    const next = { ...tagColors };
+    delete next[tag];
+    onUpdate(next);
+  };
+
+  // Merge: all tags from projects + any saved color tags
+  const allKnown = [...new Set([...allTags, ...Object.keys(tagColors)])].sort();
+
+  const inputStyle = {
+    background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6,
+    padding: "8px 12px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box",
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 12,
+          width: "100%", maxWidth: 440, maxHeight: "90vh", overflow: "auto",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${COLORS.border}` }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: COLORS.text }}>Tag Colors</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: COLORS.textMuted }}>
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+
+        <div style={{ padding: 20 }}>
+          {/* Existing tags */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+            {allKnown.map((tag) => {
+              const currentColor = tagColors[tag];
+              return (
+                <div key={tag} style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+                  background: COLORS.surfaceActive, borderRadius: 6,
+                  border: `1px solid ${currentColor ? currentColor + "44" : COLORS.border}`,
+                }}>
+                  <Tag label={tag} color={currentColor} />
+                  <div style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center" }}>
+                    {TAG_PALETTE.map((p) => (
+                      <span
+                        key={p.id}
+                        onClick={() => handleColorChange(tag, p.color)}
+                        style={{
+                          width: 18, height: 18, borderRadius: "50%", background: p.color, cursor: "pointer",
+                          border: currentColor === p.color ? "2px solid #fff" : "2px solid transparent",
+                          transition: "border 0.15s",
+                          flexShrink: 0,
+                        }}
+                        title={p.label}
+                      />
+                    ))}
+                    {currentColor && (
+                      <span
+                        onClick={() => handleRemoveColor(tag)}
+                        style={{ cursor: "pointer", color: COLORS.textDim, fontSize: 14, marginLeft: 4, padding: "0 2px" }}
+                        title="Remove color"
+                      >
+                        ×
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {allKnown.length === 0 && (
+              <p style={{ fontSize: 13, color: COLORS.textDim, textAlign: "center", padding: 12 }}>No tags yet. Add tags to projects first, or create one below.</p>
+            )}
+          </div>
+
+          {/* Add new tag with color */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+              placeholder="New tag name..."
+              style={{ ...inputStyle, flex: 1 }}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+            />
+            <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+              {TAG_PALETTE.slice(0, 5).map((p) => (
+                <span
+                  key={p.id}
+                  onClick={() => setNewColor(p.color)}
+                  style={{
+                    width: 20, height: 20, borderRadius: "50%", background: p.color, cursor: "pointer",
+                    border: newColor === p.color ? "2px solid #fff" : "2px solid transparent",
+                    flexShrink: 0,
+                  }}
+                />
+              ))}
+            </div>
+            <button
+              onClick={handleAdd}
+              style={{
+                background: COLORS.accent, border: "none", borderRadius: 6, padding: "0 14px",
+                color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+              }}
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main App ────────────────────────────────────────────────────────────────
+export default function ProjectPlanner() {
+  const { projects, loading, saveProject, deleteProject } = useProjects();
+  const { tagColors, updateTagColor: handleUpdateTagColor } = useTagColors();
+  const { visibleFields, setVisibleFields, customFieldDefs: customFields, setCustomFieldDefs: setCustomFields } = useAppSettings();
+  const [view, setView] = useState("board");
+  const [modal, setModal] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [showFieldSettings, setShowFieldSettings] = useState(false);
+  const [showTagManager, setShowTagManager] = useState(false);
+
+  const filtered = useMemo(() => {
+    let result = projects;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q) ||
+          p.tags.some((t) => t.includes(q))
+      );
+    }
+    if (filterStatus !== "all") {
+      result = result.filter((p) => p.status === filterStatus);
+    }
+    return result;
+  }, [projects, search, filterStatus]);
+
+  const allTags = useMemo(() => {
+    const set = new Set();
+    projects.forEach((p) => p.tags?.forEach((t) => set.add(t)));
+    return [...set].sort();
+  }, [projects]);
+
+  const handleSave = (project) => {
+    saveProject(project);
+    setModal(null);
+  };
+
+  const handleDelete = (id) => {
+    deleteProject(id);
+    setModal(null);
+  };
+
+  const handleUpdateVisible = (key, value) => {
+    if (key.startsWith("custom_")) {
+      const fieldId = key.replace("custom_", "");
+      const updated = customFields.map((f) => f.id === fieldId ? { ...f, visible: value } : f);
+      setCustomFields(updated);
+    } else {
+      setVisibleFields({ ...visibleFields, [key]: value });
+    }
+  };
+
+  const handleAddField = (field) => {
+    setCustomFields([...customFields, field]);
+  };
+
+  const handleRemoveField = (fieldId) => {
+    setCustomFields(customFields.filter((f) => f.id !== fieldId));
+  };
+
+  const viewButtons = [
+    { key: "board", icon: "grid", label: "Board" },
+    { key: "timeline", icon: "timeline", label: "Timeline" },
+    { key: "calendar", icon: "calendar", label: "Calendar" },
+    { key: "list", icon: "timeline", label: "List" },
+  ];
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: COLORS.accent, fontSize: 16, fontFamily: "'DM Sans', sans-serif" }}>Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: COLORS.bg,
+        color: COLORS.text,
+        fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+      }}
+    >
+      <style>{`
+        html, body, #root { background: ${COLORS.bg} !important; min-height: 100vh; margin: 0; padding: 0; }
+        *, *::before, *::after { box-sizing: border-box; }
+        select option { background: ${COLORS.surface}; color: ${COLORS.text}; }
+        input::placeholder, textarea::placeholder { color: ${COLORS.textDim}; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: ${COLORS.bg}; }
+        ::-webkit-scrollbar-thumb { background: ${COLORS.border}; border-radius: 3px; }
+      `}</style>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+      {/* Top Bar */}
+      <header
+        style={{
+          padding: "14px 24px",
+          borderBottom: `1px solid ${COLORS.border}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          flexWrap: "wrap",
+          background: COLORS.surface,
+          position: "sticky",
+          top: 0,
+          zIndex: 100,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <img src={LOGO_SRC} alt="creatly" style={{ height: 26, objectFit: "contain" }} />
+          <span style={{ fontSize: 11, color: COLORS.textDim, padding: "2px 8px", background: COLORS.surfaceActive, borderRadius: 4 }}>
+            {projects.length} projects
+          </span>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, maxWidth: 500 }}>
+          {/* Search */}
+          <div style={{ position: "relative", flex: 1 }}>
+            <Icon name="search" size={14} color={COLORS.textDim} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search projects..."
+              style={{
+                width: "100%",
+                background: COLORS.surfaceActive,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 6,
+                padding: "7px 10px 7px 32px",
+                color: COLORS.text,
+                fontSize: 13,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          {/* Filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={{
+              background: COLORS.surfaceActive,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              padding: "7px 10px",
+              color: COLORS.textMuted,
+              fontSize: 12,
+              outline: "none",
+              appearance: "none",
+              cursor: "pointer",
+            }}
+          >
+            <option value="all">All Status</option>
+            {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+              <option key={k} value={k}>{v.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* View toggles */}
+          <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
+            {viewButtons.map((v) => (
+              <button
+                key={v.key}
+                onClick={() => setView(v.key)}
+                style={{
+                  background: view === v.key ? COLORS.bg : "transparent",
+                  border: "none",
+                  padding: "6px 12px",
+                  cursor: "pointer",
+                  color: view === v.key ? COLORS.accent : COLORS.textDim,
+                  fontSize: 11,
+                  fontWeight: view === v.key ? 600 : 400,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  transition: "all 0.15s",
+                }}
+              >
+                <Icon name={v.icon} size={13} color={view === v.key ? COLORS.accent : COLORS.textDim} />
+                {v.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tag Colors */}
+          <button
+            onClick={() => setShowTagManager(true)}
+            style={{
+              background: COLORS.surfaceActive,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              padding: "7px 10px",
+              cursor: "pointer",
+              color: COLORS.textMuted,
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 12,
+            }}
+          >
+            Tags
+          </button>
+
+          {/* Field Settings */}
+          <button
+            onClick={() => setShowFieldSettings(true)}
+            style={{
+              background: COLORS.surfaceActive,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              padding: "7px 10px",
+              cursor: "pointer",
+              color: COLORS.textMuted,
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 12,
+            }}
+          >
+            <Icon name="filter" size={13} color={COLORS.textMuted} />
+            Fields
+          </button>
+
+          {/* New Project */}
+          <button
+            onClick={() => setModal("new")}
+            style={{
+              background: COLORS.accent,
+              border: "none",
+              borderRadius: 6,
+              padding: "7px 14px",
+              color: COLORS.bg,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            <Icon name="plus" size={14} color={COLORS.bg} />
+            New
+          </button>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main style={{ padding: 24, maxWidth: view === "timeline" ? "none" : 1400, margin: "0 auto" }}>
+        {view === "board" && <BoardView projects={filtered} onSelect={setModal} visibleFields={visibleFields} customFields={customFields} tagColors={tagColors} />}
+        {view === "timeline" && <TimelineView projects={filtered} onSelect={setModal} />}
+        {view === "calendar" && <CalendarView projects={filtered} onSelect={setModal} />}
+        {view === "list" && <ListView projects={filtered} onSelect={setModal} />}
+
+        {filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: 60, color: COLORS.textDim }}>
+            <p style={{ fontSize: 14, marginBottom: 8 }}>No projects found</p>
+            <button
+              onClick={() => setModal("new")}
+              style={{
+                background: "none",
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 6,
+                padding: "8px 18px",
+                color: COLORS.textMuted,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              Create your first project
+            </button>
+          </div>
+        )}
+      </main>
+
+      {/* Project Modal */}
+      {modal && (
+        <ProjectModal
+          project={modal === "new" ? null : modal}
+          onSave={handleSave}
+          onDelete={handleDelete}
+          onClose={() => setModal(null)}
+          customFields={customFields}
+          tagColors={tagColors}
+          allTags={allTags}
+          onUpdateTagColor={handleUpdateTagColor}
+        />
+      )}
+
+      {/* Field Settings Modal */}
+      {showFieldSettings && (
+        <FieldSettingsModal
+          visibleFields={visibleFields}
+          customFields={customFields}
+          onUpdateVisible={handleUpdateVisible}
+          onAddField={handleAddField}
+          onRemoveField={handleRemoveField}
+          onClose={() => setShowFieldSettings(false)}
+        />
+      )}
+
+      {/* Tag Manager Modal */}
+      {showTagManager && (
+        <TagManagerModal
+          tagColors={tagColors}
+          allTags={allTags}
+          onUpdate={setTagColors}
+          onClose={() => setShowTagManager(false)}
+        />
+      )}
+    </div>
+  );
+}
