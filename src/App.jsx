@@ -1636,7 +1636,7 @@ const TagManagerModal = ({ tagColors, allTags, onUpdate, onClose }) => {
 };
 
 // ─── Main App ────────────────────────────────────────────────────────────────
-export default function ProjectPlanner() {
+function ProjectPlanner() {
   const { projects, loading, saveProject, deleteProject } = useProjects();
   const { tagColors, updateTagColor: handleUpdateTagColor } = useTagColors();
   const { visibleFields, setVisibleFields, customFieldDefs: customFields, setCustomFieldDefs: setCustomFields } = useAppSettings();
@@ -1954,5 +1954,86 @@ export default function ProjectPlanner() {
         />
       )}
     </div>
+  );
+}
+
+// ─── Password Gate ───────────────────────────────────────────────────────────
+const APP_PASSWORD = "CREatly123!";
+const STORAGE_KEY = "creatly_auth";
+
+function PasswordGate({ children }) {
+  const [authed, setAuthed] = useState(false);
+  const [input, setInput] = useState("");
+  const [error, setError] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    try {
+      const stored = window.sessionStorage.getItem(STORAGE_KEY);
+      if (stored === APP_PASSWORD) setAuthed(true);
+    } catch (e) {}
+    setChecking(false);
+  }, []);
+
+  const handleSubmit = () => {
+    if (input === APP_PASSWORD) {
+      try { window.sessionStorage.setItem(STORAGE_KEY, input); } catch (e) {}
+      setAuthed(true);
+      setError(false);
+    } else {
+      setError(true);
+      setInput("");
+    }
+  };
+
+  if (checking) return null;
+  if (authed) return children;
+
+  return (
+    <div style={{
+      minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+    }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <div style={{ width: "100%", maxWidth: 360, padding: 24 }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <img src={LOGO_SRC} alt="creatly" style={{ height: 36, objectFit: "contain", marginBottom: 16 }} />
+          <p style={{ color: COLORS.textMuted, fontSize: 14 }}>Enter password to continue</p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <input
+            type="password"
+            value={input}
+            onChange={(e) => { setInput(e.target.value); setError(false); }}
+            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+            placeholder="Password"
+            autoFocus
+            style={{
+              background: COLORS.surfaceActive, border: `1px solid ${error ? COLORS.danger : COLORS.border}`,
+              borderRadius: 8, padding: "12px 16px", color: COLORS.text, fontSize: 15, outline: "none",
+              width: "100%", boxSizing: "border-box", textAlign: "center", letterSpacing: "0.1em",
+            }}
+          />
+          {error && <p style={{ color: COLORS.danger, fontSize: 13, textAlign: "center", margin: 0 }}>Wrong password</p>}
+          <button
+            onClick={handleSubmit}
+            style={{
+              background: COLORS.accent, border: "none", borderRadius: 8, padding: "12px 24px",
+              color: COLORS.bg, fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%",
+            }}
+          >
+            Enter
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <PasswordGate>
+      <ProjectPlanner />
+    </PasswordGate>
   );
 }
