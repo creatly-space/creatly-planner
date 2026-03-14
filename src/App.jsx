@@ -5,7 +5,7 @@ import { useProjects, useTagColors, useAppSettings } from "./hooks";
 
 const LOGO_SRC = "data:image/png;base64,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";
 
-const COLORS = {
+const DARK_THEME = {
   bg: "#0A0A0A",
   surface: "#151515",
   surfaceHover: "#1C1C1C",
@@ -24,6 +24,28 @@ const COLORS = {
   purple: "#9B7ADB",
   orange: "#D98C4A",
 };
+
+const LIGHT_THEME = {
+  bg: "#F5F5F5",
+  surface: "#FFFFFF",
+  surfaceHover: "#FAFAFA",
+  surfaceActive: "#F0F0F0",
+  border: "#E0E0E0",
+  borderLight: "#D0D0D0",
+  text: "#1A1A1A",
+  textMuted: "#666666",
+  textDim: "#999999",
+  accent: "#4EA65A",
+  accentDim: "#3D8F48",
+  accentGlow: "rgba(78,166,90,0.08)",
+  danger: "#D44",
+  success: "#4EA65A",
+  blue: "#4080C0",
+  purple: "#7B5ABB",
+  orange: "#C07030",
+};
+
+let COLORS = DARK_THEME;
 
 const STATUS_CONFIG = {
   backlog: { label: "Backlog", color: COLORS.textDim, dot: "#555" },
@@ -528,6 +550,7 @@ const TagDropdownInput = ({ value, onChange, onAdd, allTags, currentTags, tagCol
 
 // ─── Project Detail / Editor Modal ───────────────────────────────────────────
 const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], tagColors = {}, allTags = [], onUpdateTagColor }) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [form, setForm] = useState(
     project || {
       id: uid(),
@@ -817,9 +840,9 @@ const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], t
         {/* Footer */}
         <div style={{ display: "flex", justifyContent: "space-between", padding: "16px 20px", borderTop: `1px solid ${COLORS.border}` }}>
           <div>
-            {!isNew && (
+            {!isNew && !confirmDelete && (
               <button
-                onClick={() => { onDelete(form.id); onClose(); }}
+                onClick={() => setConfirmDelete(true)}
                 style={{
                   background: "none",
                   border: `1px solid ${COLORS.danger}33`,
@@ -836,6 +859,29 @@ const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], t
                 <Icon name="trash" size={14} color={COLORS.danger} />
                 Delete
               </button>
+            )}
+            {confirmDelete && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, color: COLORS.danger }}>Delete this project?</span>
+                <button
+                  onClick={() => { onDelete(form.id); onClose(); }}
+                  style={{
+                    background: COLORS.danger, border: "none", borderRadius: 6,
+                    padding: "8px 14px", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  Yes, delete
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  style={{
+                    background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6,
+                    padding: "8px 14px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             )}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -881,6 +927,7 @@ const BoardView = ({ projects, onSelect, visibleFields, customFields, tagColors 
 
   return (
     <div
+      className="creatly-board"
       style={{
         display: "grid",
         gridTemplateColumns: `repeat(${columns.length}, minmax(200px, 1fr))`,
@@ -1273,7 +1320,7 @@ const CalendarView = ({ projects, onSelect }) => {
 const ListView = ({ projects, onSelect }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
     {/* Header */}
-    <div style={{ display: "grid", gridTemplateColumns: "2fr 100px 80px 140px 1fr", gap: 12, padding: "8px 14px", borderBottom: `1px solid ${COLORS.border}` }}>
+    <div className="creatly-list-header" style={{ display: "grid", gridTemplateColumns: "2fr 100px 80px 140px 1fr", gap: 12, padding: "8px 14px", borderBottom: `1px solid ${COLORS.border}` }}>
       {["Project", "Status", "Priority", "Date", "Tags"].map((h) => (
         <span key={h} style={{ fontSize: 10, fontWeight: 600, color: COLORS.textDim, letterSpacing: "0.06em", textTransform: "uppercase" }}>
           {h}
@@ -1284,6 +1331,7 @@ const ListView = ({ projects, onSelect }) => (
     {projects.map((p) => (
       <div
         key={p.id}
+        className="creatly-list-row"
         onClick={() => onSelect(p)}
         style={{
           display: "grid",
@@ -1302,14 +1350,14 @@ const ListView = ({ projects, onSelect }) => (
         </span>
         <StatusBadge status={p.status} small />
         <PriorityBadge priority={p.priority} />
-        <span style={{ fontSize: 12, color: COLORS.textDim }}>
+        <span className="creatly-list-date" style={{ fontSize: 12, color: COLORS.textDim }}>
           {p.startDate
             ? p.dateMode === "single"
               ? formatDate(p.startDate)
               : `${formatDate(p.startDate)} → ${formatDate(p.endDate)}`
             : "—"}
         </span>
-        <div style={{ display: "flex", gap: 4, overflow: "hidden" }}>
+        <div className="creatly-list-tags" style={{ display: "flex", gap: 4, overflow: "hidden" }}>
           {p.tags.slice(0, 3).map((t) => (
             <Tag key={t} label={t} />
           ))}
@@ -1646,6 +1694,15 @@ function ProjectPlanner() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem("creatly_theme") || "dark"; } catch(e) { return "dark"; }
+  });
+
+  // Apply theme
+  COLORS = theme === "dark" ? DARK_THEME : LIGHT_THEME;
+  useEffect(() => {
+    try { localStorage.setItem("creatly_theme", theme); } catch(e) {}
+  }, [theme]);
 
   const filtered = useMemo(() => {
     let result = projects;
@@ -1723,18 +1780,29 @@ function ProjectPlanner() {
       }}
     >
       <style>{`
-        html, body, #root { background: ${COLORS.bg} !important; min-height: 100vh; margin: 0; padding: 0; }
+        html, body, #root { background: ${COLORS.bg} !important; min-height: 100vh; margin: 0; padding: 0; color: ${COLORS.text}; }
         *, *::before, *::after { box-sizing: border-box; }
         select option { background: ${COLORS.surface}; color: ${COLORS.text}; }
         input::placeholder, textarea::placeholder { color: ${COLORS.textDim}; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: ${COLORS.bg}; }
         ::-webkit-scrollbar-thumb { background: ${COLORS.border}; border-radius: 3px; }
+        @media (max-width: 768px) {
+          .creatly-header { flex-direction: column !important; gap: 10px !important; padding: 10px 14px !important; }
+          .creatly-header-search { max-width: 100% !important; }
+          .creatly-header-actions { width: 100%; justify-content: space-between !important; flex-wrap: wrap; }
+          .creatly-board { grid-template-columns: 1fr !important; }
+          .creatly-list-row { grid-template-columns: 1fr auto !important; }
+          .creatly-list-header { display: none !important; }
+          .creatly-list-tags, .creatly-list-date { display: none !important; }
+          main { padding: 12px !important; }
+        }
       `}</style>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Top Bar */}
       <header
+        className="creatly-header"
         style={{
           padding: "14px 24px",
           borderBottom: `1px solid ${COLORS.border}`,
@@ -1756,7 +1824,7 @@ function ProjectPlanner() {
           </span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, maxWidth: 500 }}>
+        <div className="creatly-header-search" style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, maxWidth: 500 }}>
           {/* Search */}
           <div style={{ position: "relative", flex: 1 }}>
             <Icon name="search" size={14} color={COLORS.textDim} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
@@ -1801,7 +1869,7 @@ function ProjectPlanner() {
           </select>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="creatly-header-actions" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {/* View toggles */}
           <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
             {viewButtons.map((v) => (
@@ -1827,6 +1895,24 @@ function ProjectPlanner() {
               </button>
             ))}
           </div>
+
+          {/* Theme Toggle */}
+          <button
+            onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
+            style={{
+              background: COLORS.surfaceActive,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 6,
+              padding: "7px 10px",
+              cursor: "pointer",
+              color: COLORS.textMuted,
+              fontSize: 14,
+              lineHeight: 1,
+            }}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
 
           {/* Tag Colors */}
           <button
