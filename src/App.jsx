@@ -1970,7 +1970,7 @@ const TagManagerModal = ({ tagColors, allTags, onUpdate, onClose }) => {
 };
 
 // ─── Main App ────────────────────────────────────────────────────────────────
-function ProjectPlanner() {
+function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { projects, loading, saveProject, deleteProject } = useProjects();
   const { tagColors, updateTagColor: handleUpdateTagColor } = useTagColors();
   const { visibleFields, setVisibleFields, customFieldDefs: customFields, setCustomFieldDefs: setCustomFields } = useAppSettings();
@@ -1982,6 +1982,7 @@ function ProjectPlanner() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
+  const [toast, setToast] = useState(null);
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem("creatly_theme") || "dark"; } catch(e) { return "dark"; }
   });
@@ -1991,6 +1992,33 @@ function ProjectPlanner() {
   useEffect(() => {
     try { localStorage.setItem("creatly_theme", theme); } catch(e) {}
   }, [theme]);
+
+  // Toast notification for other user's changes
+  const showToast = useCallback((msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  // Watch for realtime changes from the other user
+  const prevProjectsRef = useRef(projects);
+  useEffect(() => {
+    const prev = prevProjectsRef.current;
+    if (prev.length > 0 && projects.length > 0) {
+      for (const p of projects) {
+        const old = prev.find(o => o.id === p.id);
+        if (p.updatedBy && p.updatedBy !== currentUserId) {
+          if (!old) {
+            showToast(`${p.updatedBy === "ludvig" ? "Ludvig" : "Johannes"} created "${p.title}"`);
+            break;
+          } else if (old.status !== p.status || old.title !== p.title) {
+            showToast(`${p.updatedBy === "ludvig" ? "Ludvig" : "Johannes"} updated "${p.title}"`);
+            break;
+          }
+        }
+      }
+    }
+    prevProjectsRef.current = projects;
+  }, [projects, currentUserId, showToast]);
 
   const filtered = useMemo(() => {
     let result = projects;
@@ -2016,7 +2044,7 @@ function ProjectPlanner() {
   }, [projects]);
 
   const handleSave = (project) => {
-    saveProject(project);
+    saveProject(project, currentUserId);
     setModal(null);
   };
 
@@ -2172,6 +2200,19 @@ function ProjectPlanner() {
         </div>}
 
         <div className="creatly-header-actions" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* User indicator */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}` }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.accent }} />
+            <span style={{ fontSize: 11, color: COLORS.textMuted, fontWeight: 500 }}>{currentUser.name}</span>
+            <button
+              onClick={onLogout}
+              style={{ background: "none", border: "none", color: COLORS.textDim, fontSize: 11, cursor: "pointer", padding: "0 0 0 4px" }}
+              title="Sign out"
+            >
+              ✕
+            </button>
+          </div>
+
           {/* Theme Toggle - always visible */}
           <button
             onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
@@ -2317,7 +2358,7 @@ function ProjectPlanner() {
 
         {/* Docs view */}
         {module === "docs" && (
-          <DocsView docs={docs} onSave={saveDoc} onDelete={deleteDoc} theme={theme} />
+          <DocsView docs={docs} onSave={(doc) => saveDoc(doc, currentUserId)} onDelete={deleteDoc} theme={theme} />
         )}
       </main>
 
@@ -2356,32 +2397,48 @@ function ProjectPlanner() {
           onClose={() => setShowTagManager(false)}
         />
       )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div style={{
+          position: "fixed", bottom: 24, right: 24, zIndex: 9999,
+          background: COLORS.surface, border: `1px solid ${COLORS.accent}44`,
+          borderRadius: 8, padding: "12px 18px", boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+          display: "flex", alignItems: "center", gap: 10, animation: "fadeIn 0.3s ease",
+        }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.accent }} />
+          <span style={{ fontSize: 13, color: COLORS.text }}>{toast}</span>
+        </div>
+      )}
     </div>
   );
-}
+} ─────────────────────────────────────────────────────────
+const USERS = {
+  ludvig: { name: "Ludvig", password: "ludvig" },
+  johannes: { name: "Johannes", password: "johannes" },
+};
+const USER_KEY = "creatly_user";
 
-// ─── Password Gate ───────────────────────────────────────────────────────────
-const APP_PASSWORD = "CREatly123!";
-const STORAGE_KEY = "creatly_auth";
-
-function PasswordGate({ children }) {
-  const [authed, setAuthed] = useState(false);
+function UserGate({ children }) {
+  const [user, setUser] = useState(null);
   const [input, setInput] = useState("");
   const [error, setError] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     try {
-      const stored = window.sessionStorage.getItem(STORAGE_KEY);
-      if (stored === APP_PASSWORD) setAuthed(true);
+      const stored = window.sessionStorage.getItem(USER_KEY);
+      if (stored && USERS[stored]) setUser(stored);
     } catch (e) {}
     setChecking(false);
   }, []);
 
   const handleSubmit = () => {
-    if (input === APP_PASSWORD) {
-      try { window.sessionStorage.setItem(STORAGE_KEY, input); } catch (e) {}
-      setAuthed(true);
+    const entry = Object.entries(USERS).find(([, u]) => u.password === input);
+    if (entry) {
+      const [key] = entry;
+      try { window.sessionStorage.setItem(USER_KEY, key); } catch (e) {}
+      setUser(key);
       setError(false);
     } else {
       setError(true);
@@ -2389,8 +2446,14 @@ function PasswordGate({ children }) {
     }
   };
 
+  const handleLogout = () => {
+    try { window.sessionStorage.removeItem(USER_KEY); } catch (e) {}
+    setUser(null);
+    setInput("");
+  };
+
   if (checking) return null;
-  if (authed) return children;
+  if (user) return children({ user: USERS[user], userId: user, onLogout: handleLogout });
 
   return (
     <div style={{
@@ -2401,7 +2464,7 @@ function PasswordGate({ children }) {
       <div style={{ width: "100%", maxWidth: 360, padding: 24 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <img src={LOGO_SRC} alt="creatly" style={{ height: 36, objectFit: "contain", marginBottom: 16 }} />
-          <p style={{ color: COLORS.textMuted, fontSize: 14 }}>Enter password to continue</p>
+          <p style={{ color: COLORS.textMuted, fontSize: 14 }}>Sign in to continue</p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <input
@@ -2409,7 +2472,7 @@ function PasswordGate({ children }) {
             value={input}
             onChange={(e) => { setInput(e.target.value); setError(false); }}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            placeholder="Password"
+            placeholder="Your password"
             autoFocus
             style={{
               background: COLORS.surfaceActive, border: `1px solid ${error ? COLORS.danger : COLORS.border}`,
@@ -2425,7 +2488,7 @@ function PasswordGate({ children }) {
               color: COLORS.bg, fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%",
             }}
           >
-            Enter
+            Sign in
           </button>
         </div>
       </div>
@@ -2435,8 +2498,8 @@ function PasswordGate({ children }) {
 
 export default function App() {
   return (
-    <PasswordGate>
-      <ProjectPlanner />
-    </PasswordGate>
+    <UserGate>
+      {({ user, userId, onLogout }) => <ProjectPlanner currentUser={user} currentUserId={userId} onLogout={onLogout} />}
+    </UserGate>
   );
 }

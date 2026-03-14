@@ -15,9 +15,10 @@ const dbToProject = (row) => ({
   notes: row.notes || '',
   customFields: row.custom_fields || {},
   created: row.created_at,
+  updatedBy: row.updated_by || null,
 })
 
-const projectToDb = (p) => ({
+const projectToDb = (p, userId) => ({
   id: p.id,
   title: p.title,
   description: p.description,
@@ -30,6 +31,7 @@ const projectToDb = (p) => ({
   notes: p.notes,
   custom_fields: p.customFields || {},
   updated_at: new Date().toISOString(),
+  updated_by: userId || null,
 })
 
 // ─── Projects Hook ───────────────────────────────────────────────────────────
@@ -70,8 +72,8 @@ export function useProjects() {
     return () => supabase.removeChannel(channel)
   }, [])
 
-  const saveProject = useCallback(async (project) => {
-    const dbRow = projectToDb(project)
+  const saveProject = useCallback(async (project, userId) => {
+    const dbRow = projectToDb(project, userId)
     const { error } = await supabase.from('projects').upsert(dbRow)
     if (error) console.error('Save error:', error)
     // Optimistic update
@@ -224,8 +226,8 @@ export function useDocs() {
     return () => supabase.removeChannel(channel)
   }, [])
 
-  const saveDoc = useCallback(async (doc) => {
-    const row = { ...doc, updated_at: new Date().toISOString() }
+  const saveDoc = useCallback(async (doc, userId) => {
+    const row = { ...doc, updated_at: new Date().toISOString(), updated_by: userId || null }
     const { error } = await supabase.from('docs').upsert(row)
     if (error) console.error('Save doc error:', error)
     setDocs(prev => {
