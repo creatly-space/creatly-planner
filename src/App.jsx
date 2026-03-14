@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useProjects, useTagColors, useAppSettings } from "./hooks";
+import { useProjects, useTagColors, useAppSettings, useDocs } from "./hooks";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -1367,6 +1367,292 @@ const ListView = ({ projects, onSelect }) => (
   </div>
 );
 
+// ─── Docs / Knowledge Base View ─────────────────────────────────────────────
+const FOLDER_PRESETS = ["General", "Brand Guidelines", "SOPs", "Meeting Notes", "Templates", "Strategy"];
+
+const DocsView = ({ docs, onSave, onDelete, theme }) => {
+  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editFolder, setEditFolder] = useState("General");
+  const [search, setSearch] = useState("");
+  const [folderFilter, setFolderFilter] = useState("all");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+
+  // Get all unique folders
+  const allFolders = useMemo(() => {
+    const set = new Set(FOLDER_PRESETS);
+    docs.forEach((d) => d.folder && set.add(d.folder));
+    return [...set].sort();
+  }, [docs]);
+
+  // Filter docs
+  const filtered = useMemo(() => {
+    let result = docs;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((d) => d.title.toLowerCase().includes(q) || d.content?.toLowerCase().includes(q));
+    }
+    if (folderFilter !== "all") {
+      result = result.filter((d) => d.folder === folderFilter);
+    }
+    return result;
+  }, [docs, search, folderFilter]);
+
+  const selectDoc = (doc) => {
+    setSelectedDoc(doc);
+    setEditTitle(doc.title);
+    setEditContent(doc.content || "");
+    setEditFolder(doc.folder || "General");
+    setConfirmDelete(false);
+  };
+
+  const createNew = () => {
+    const doc = {
+      id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+      title: "Untitled Document",
+      content: "",
+      folder: folderFilter !== "all" ? folderFilter : "General",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    onSave(doc);
+    selectDoc(doc);
+  };
+
+  const handleSave = () => {
+    if (!selectedDoc) return;
+    onSave({ ...selectedDoc, title: editTitle, content: editContent, folder: editFolder });
+  };
+
+  const handleAiWrite = () => {
+    if (!aiPrompt.trim()) return;
+    setAiLoading(true);
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2000,
+        messages: [{ role: "user", content: `You are a professional business writer for a Swedish e-commerce headwear brand called Hatstore/Creatly. Write the following document in a clear, professional tone. Use markdown formatting with headers, bullet points, and sections where appropriate.\n\nDocument request: ${aiPrompt}\n\n${editContent ? `Existing content to build on:\n${editContent}` : ""}` }],
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const text = data.content?.map((c) => c.text || "").join("\n") || "Error generating content.";
+        setEditContent((prev) => (prev ? prev + "\n\n" + text : text));
+        setAiLoading(false);
+        setAiPrompt("");
+      })
+      .catch(() => {
+        setAiLoading(false);
+        setEditContent((prev) => prev + "\n\n[AI generation failed — check console for errors]");
+      });
+  };
+
+  const addCustomFolder = () => {
+    if (newFolderName.trim()) {
+      setEditFolder(newFolderName.trim());
+      setShowNewFolder(false);
+      setNewFolderName("");
+    }
+  };
+
+  const inputStyle = {
+    background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6,
+    padding: "8px 12px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box",
+  };
+
+  // ─── Doc Editor View ───
+  if (selectedDoc) {
+    return (
+      <div style={{ maxWidth: 800, margin: "0 auto" }}>
+        {/* Back button */}
+        <button
+          onClick={() => { handleSave(); setSelectedDoc(null); }}
+          style={{
+            background: "none", border: "none", color: COLORS.accent, fontSize: 13, cursor: "pointer",
+            padding: "0 0 16px", display: "flex", alignItems: "center", gap: 6,
+          }}
+        >
+          ← Back to docs
+        </button>
+
+        {/* Title */}
+        <input
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          onBlur={handleSave}
+          style={{
+            ...inputStyle, fontSize: 22, fontWeight: 700, padding: "12px 0", marginBottom: 8,
+            background: "transparent", border: "none", borderBottom: `1px solid ${COLORS.border}`,
+            borderRadius: 0, width: "100%",
+          }}
+        />
+
+        {/* Folder selector */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Folder:</span>
+          {!showNewFolder ? (
+            <>
+              <select
+                value={editFolder}
+                onChange={(e) => { setEditFolder(e.target.value); }}
+                onBlur={handleSave}
+                style={{ ...inputStyle, width: "auto", appearance: "none", cursor: "pointer", padding: "4px 12px" }}
+              >
+                {allFolders.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+              <button onClick={() => setShowNewFolder(true)} style={{ background: "none", border: `1px dashed ${COLORS.border}`, borderRadius: 4, padding: "4px 8px", color: COLORS.textDim, fontSize: 11, cursor: "pointer" }}>
+                + New folder
+              </button>
+            </>
+          ) : (
+            <div style={{ display: "flex", gap: 6 }}>
+              <input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCustomFolder()} placeholder="Folder name..." style={{ ...inputStyle, width: 160, padding: "4px 8px" }} autoFocus />
+              <button onClick={addCustomFolder} style={{ background: COLORS.accent, border: "none", borderRadius: 4, padding: "4px 10px", color: COLORS.bg, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Add</button>
+              <button onClick={() => setShowNewFolder(false)} style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", fontSize: 12 }}>Cancel</button>
+            </div>
+          )}
+        </div>
+
+        {/* AI Writer */}
+        <div style={{
+          background: `${COLORS.accent}08`, border: `1px solid ${COLORS.accent}22`, borderRadius: 8,
+          padding: 14, marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+            ✨ AI Writer
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !aiLoading && handleAiWrite()}
+              placeholder="Describe what to write... e.g. 'Brand voice guidelines for social media'"
+              style={{ ...inputStyle, flex: 1 }}
+              disabled={aiLoading}
+            />
+            <button
+              onClick={handleAiWrite}
+              disabled={aiLoading || !aiPrompt.trim()}
+              style={{
+                background: aiLoading ? COLORS.surfaceActive : COLORS.accent,
+                border: "none", borderRadius: 6, padding: "0 18px",
+                color: aiLoading ? COLORS.textDim : COLORS.bg, fontSize: 13, fontWeight: 600, cursor: aiLoading ? "wait" : "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {aiLoading ? "Writing..." : "Generate"}
+            </button>
+          </div>
+        </div>
+
+        {/* Content editor */}
+        <textarea
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          onBlur={handleSave}
+          placeholder="Start writing or use the AI writer above..."
+          style={{
+            ...inputStyle, minHeight: 400, resize: "vertical", fontFamily: "'DM Sans', monospace",
+            lineHeight: 1.7, fontSize: 14, padding: 16, borderRadius: 8,
+          }}
+        />
+
+        {/* Footer actions */}
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16, alignItems: "center" }}>
+          <div>
+            {!confirmDelete ? (
+              <button onClick={() => setConfirmDelete(true)} style={{ background: "none", border: `1px solid ${COLORS.danger}33`, borderRadius: 6, padding: "8px 14px", color: COLORS.danger, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                <Icon name="trash" size={14} color={COLORS.danger} /> Delete
+              </button>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, color: COLORS.danger }}>Delete this doc?</span>
+                <button onClick={() => { onDelete(selectedDoc.id); setSelectedDoc(null); }} style={{ background: COLORS.danger, border: "none", borderRadius: 6, padding: "8px 14px", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Yes, delete</button>
+                <button onClick={() => setConfirmDelete(false)} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 14px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+              </div>
+            )}
+          </div>
+          <span style={{ fontSize: 11, color: COLORS.textDim }}>
+            {editContent.length} characters · Last saved {selectedDoc.updated_at ? new Date(selectedDoc.updated_at).toLocaleString() : "never"}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Doc List View ───
+  return (
+    <div>
+      {/* Header bar */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+          <Icon name="search" size={14} color={COLORS.textDim} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search docs..."
+            style={{ ...inputStyle, paddingLeft: 32 }}
+          />
+        </div>
+        <select value={folderFilter} onChange={(e) => setFolderFilter(e.target.value)} style={{ ...inputStyle, width: "auto", appearance: "none", cursor: "pointer" }}>
+          <option value="all">All Folders</option>
+          {allFolders.map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
+        <button onClick={createNew} style={{ background: COLORS.accent, border: "none", borderRadius: 6, padding: "8px 16px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+          <Icon name="plus" size={14} color={COLORS.bg} /> New Doc
+        </button>
+      </div>
+
+      {/* Docs grid */}
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 60, color: COLORS.textDim }}>
+          <p style={{ fontSize: 14, marginBottom: 8 }}>{docs.length === 0 ? "No documents yet" : "No matching documents"}</p>
+          <button onClick={createNew} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 18px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>
+            Create your first document
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+          {filtered.map((doc) => (
+            <div
+              key={doc.id}
+              onClick={() => selectDoc(doc)}
+              style={{
+                background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8,
+                padding: 16, cursor: "pointer", transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; e.currentTarget.style.borderColor = COLORS.borderLight; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = COLORS.surface; e.currentTarget.style.borderColor = COLORS.border; }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, margin: 0, lineHeight: 1.3, flex: 1 }}>
+                  {doc.title}
+                </h3>
+                <span style={{ fontSize: 10, color: COLORS.textDim, background: COLORS.surfaceActive, padding: "2px 6px", borderRadius: 3, whiteSpace: "nowrap", marginLeft: 8 }}>
+                  {doc.folder}
+                </span>
+              </div>
+              <p style={{ fontSize: 13, color: COLORS.textMuted, margin: 0, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                {doc.content?.slice(0, 200) || "Empty document"}
+              </p>
+              <div style={{ marginTop: 10, fontSize: 11, color: COLORS.textDim }}>
+                {doc.updated_at ? new Date(doc.updated_at).toLocaleDateString() : ""}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Default field types ─────────────────────────────────────────────────────
 const FIELD_TYPES = {
   text: { label: "Text", icon: "edit" },
@@ -1688,6 +1974,8 @@ function ProjectPlanner() {
   const { projects, loading, saveProject, deleteProject } = useProjects();
   const { tagColors, updateTagColor: handleUpdateTagColor } = useTagColors();
   const { visibleFields, setVisibleFields, customFieldDefs: customFields, setCustomFieldDefs: setCustomFields } = useAppSettings();
+  const { docs, loading: docsLoading, saveDoc, deleteDoc } = useDocs();
+  const [module, setModule] = useState("planner");
   const [view, setView] = useState("board");
   const [modal, setModal] = useState(null);
   const [search, setSearch] = useState("");
@@ -1762,7 +2050,7 @@ function ProjectPlanner() {
     { key: "list", icon: "timeline", label: "List" },
   ];
 
-  if (loading) {
+  if (loading || docsLoading) {
     return (
       <div style={{ minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ color: COLORS.accent, fontSize: 16, fontFamily: "'DM Sans', sans-serif" }}>Loading...</div>
@@ -1819,12 +2107,26 @@ function ProjectPlanner() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <img src={LOGO_SRC} alt="creatly" style={{ height: 26, objectFit: "contain" }} />
-          <span style={{ fontSize: 11, color: COLORS.textDim, padding: "2px 8px", background: COLORS.surfaceActive, borderRadius: 4 }}>
-            {projects.length} projects
-          </span>
+          {/* Module tabs */}
+          <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
+            {[{ key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }].map((m) => (
+              <button
+                key={m.key}
+                onClick={() => setModule(m.key)}
+                style={{
+                  background: module === m.key ? COLORS.bg : "transparent",
+                  border: "none", padding: "6px 14px", cursor: "pointer",
+                  color: module === m.key ? COLORS.accent : COLORS.textDim,
+                  fontSize: 12, fontWeight: module === m.key ? 600 : 400, transition: "all 0.15s",
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="creatly-header-search" style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, maxWidth: 500 }}>
+        {module === "planner" && <div className="creatly-header-search" style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, maxWidth: 500 }}>
           {/* Search */}
           <div style={{ position: "relative", flex: 1 }}>
             <Icon name="search" size={14} color={COLORS.textDim} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
@@ -1867,36 +2169,10 @@ function ProjectPlanner() {
               <option key={k} value={k}>{v.label}</option>
             ))}
           </select>
-        </div>
+        </div>}
 
         <div className="creatly-header-actions" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {/* View toggles */}
-          <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-            {viewButtons.map((v) => (
-              <button
-                key={v.key}
-                onClick={() => setView(v.key)}
-                style={{
-                  background: view === v.key ? COLORS.bg : "transparent",
-                  border: "none",
-                  padding: "6px 12px",
-                  cursor: "pointer",
-                  color: view === v.key ? COLORS.accent : COLORS.textDim,
-                  fontSize: 11,
-                  fontWeight: view === v.key ? 600 : 400,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  transition: "all 0.15s",
-                }}
-              >
-                <Icon name={v.icon} size={13} color={view === v.key ? COLORS.accent : COLORS.textDim} />
-                {v.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Theme Toggle */}
+          {/* Theme Toggle - always visible */}
           <button
             onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
             style={{
@@ -1914,93 +2190,134 @@ function ProjectPlanner() {
             {theme === "dark" ? "☀️" : "🌙"}
           </button>
 
-          {/* Tag Colors */}
-          <button
-            onClick={() => setShowTagManager(true)}
-            style={{
-              background: COLORS.surfaceActive,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 6,
-              padding: "7px 10px",
-              cursor: "pointer",
-              color: COLORS.textMuted,
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              fontSize: 12,
-            }}
-          >
-            Tags
-          </button>
+          {/* Planner-only buttons */}
+          {module === "planner" && (
+            <>
+              {/* View toggles */}
+              <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
+                {viewButtons.map((v) => (
+                  <button
+                    key={v.key}
+                    onClick={() => setView(v.key)}
+                    style={{
+                      background: view === v.key ? COLORS.bg : "transparent",
+                      border: "none",
+                      padding: "6px 12px",
+                      cursor: "pointer",
+                      color: view === v.key ? COLORS.accent : COLORS.textDim,
+                      fontSize: 11,
+                      fontWeight: view === v.key ? 600 : 400,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <Icon name={v.icon} size={13} color={view === v.key ? COLORS.accent : COLORS.textDim} />
+                    {v.label}
+                  </button>
+                ))}
+              </div>
 
-          {/* Field Settings */}
-          <button
-            onClick={() => setShowFieldSettings(true)}
-            style={{
-              background: COLORS.surfaceActive,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 6,
-              padding: "7px 10px",
-              cursor: "pointer",
-              color: COLORS.textMuted,
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              fontSize: 12,
-            }}
-          >
-            <Icon name="filter" size={13} color={COLORS.textMuted} />
-            Fields
-          </button>
+              {/* Tag Colors */}
+              <button
+                onClick={() => setShowTagManager(true)}
+                style={{
+                  background: COLORS.surfaceActive,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 6,
+                  padding: "7px 10px",
+                  cursor: "pointer",
+                  color: COLORS.textMuted,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 12,
+                }}
+              >
+                Tags
+              </button>
 
-          {/* New Project */}
-          <button
-            onClick={() => setModal("new")}
-            style={{
-              background: COLORS.accent,
-              border: "none",
-              borderRadius: 6,
-              padding: "7px 14px",
-              color: COLORS.bg,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-            }}
-          >
-            <Icon name="plus" size={14} color={COLORS.bg} />
-            New
-          </button>
+              {/* Field Settings */}
+              <button
+                onClick={() => setShowFieldSettings(true)}
+                style={{
+                  background: COLORS.surfaceActive,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 6,
+                  padding: "7px 10px",
+                  cursor: "pointer",
+                  color: COLORS.textMuted,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 12,
+                }}
+              >
+                <Icon name="filter" size={13} color={COLORS.textMuted} />
+                Fields
+              </button>
+
+              {/* New Project */}
+              <button
+                onClick={() => setModal("new")}
+                style={{
+                  background: COLORS.accent,
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "7px 14px",
+                  color: COLORS.bg,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                }}
+              >
+                <Icon name="plus" size={14} color={COLORS.bg} />
+                New
+              </button>
+            </>
+          )}
         </div>
       </header>
 
       {/* Content */}
-      <main style={{ padding: 24, maxWidth: view === "timeline" ? "none" : 1400, margin: "0 auto" }}>
-        {view === "board" && <BoardView projects={filtered} onSelect={setModal} visibleFields={visibleFields} customFields={customFields} tagColors={tagColors} />}
-        {view === "timeline" && <TimelineView projects={filtered} onSelect={setModal} />}
-        {view === "calendar" && <CalendarView projects={filtered} onSelect={setModal} />}
-        {view === "list" && <ListView projects={filtered} onSelect={setModal} />}
+      <main style={{ padding: 24, maxWidth: module === "planner" && view === "timeline" ? "none" : 1400, margin: "0 auto" }}>
+        {/* Planner views */}
+        {module === "planner" && (
+          <>
+            {view === "board" && <BoardView projects={filtered} onSelect={setModal} visibleFields={visibleFields} customFields={customFields} tagColors={tagColors} />}
+            {view === "timeline" && <TimelineView projects={filtered} onSelect={setModal} />}
+            {view === "calendar" && <CalendarView projects={filtered} onSelect={setModal} />}
+            {view === "list" && <ListView projects={filtered} onSelect={setModal} />}
 
-        {filtered.length === 0 && (
-          <div style={{ textAlign: "center", padding: 60, color: COLORS.textDim }}>
-            <p style={{ fontSize: 14, marginBottom: 8 }}>No projects found</p>
-            <button
-              onClick={() => setModal("new")}
-              style={{
-                background: "none",
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 6,
-                padding: "8px 18px",
-                color: COLORS.textMuted,
-                fontSize: 13,
-                cursor: "pointer",
-              }}
-            >
-              Create your first project
-            </button>
-          </div>
+            {filtered.length === 0 && (
+              <div style={{ textAlign: "center", padding: 60, color: COLORS.textDim }}>
+                <p style={{ fontSize: 14, marginBottom: 8 }}>No projects found</p>
+                <button
+                  onClick={() => setModal("new")}
+                  style={{
+                    background: "none",
+                    border: `1px solid ${COLORS.border}`,
+                    borderRadius: 6,
+                    padding: "8px 18px",
+                    color: COLORS.textMuted,
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  Create your first project
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Docs view */}
+        {module === "docs" && (
+          <DocsView docs={docs} onSave={saveDoc} onDelete={deleteDoc} theme={theme} />
         )}
       </main>
 

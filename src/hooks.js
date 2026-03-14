@@ -187,3 +187,63 @@ export function useAppSettings() {
 
   return { visibleFields, setVisibleFields: updateVisibleFields, customFieldDefs, setCustomFieldDefs: updateCustomFieldDefs }
 }
+
+// ─── Docs Hook ───────────────────────────────────────────────────────────────
+export function useDocs() {
+  const [docs, setDocs] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data, error } = await supabase
+        .from('docs')
+        .select('*')
+        .order('updated_at', { ascending: false })
+      if (!error && data) setDocs(data)
+      setLoading(false)
+    }
+    fetch()
+  }, [])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('docs-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setDocs(prev => {
+            if (prev.find(d => d.id === payload.new.id)) return prev
+            return [payload.new, ...prev]
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setDocs(prev => prev.map(d => d.id === payload.new.id ? payload.new : d))
+        } else if (payload.eventType === 'DELETE') {
+          setDocs(prev => prev.filter(d => d.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [])
+
+  const saveDoc = useCallback(async (doc) => {
+    const row = { ...doc, updated_at: new Date().toISOString() }
+    const { error } = await supabase.from('docs').upsert(row)
+    if (error) console.error('Save doc error:', error)
+    setDocs(prev => {
+      const idx = prev.findIndex(d => d.id === doc.id)
+      if (idx >= 0) {
+        const next = [...prev]
+        next[idx] = row
+        return next
+      }
+      return [row, ...prev]
+    })
+  }, [])
+
+  const deleteDoc = useCallback(async (id) => {
+    const { error } = await supabase.from('docs').delete().eq('id', id)
+    if (error) console.error('Delete doc error:', error)
+    setDocs(prev => prev.filter(d => d.id !== id))
+  }, [])
+
+  return { docs, loading: loading, saveDoc, deleteDoc }
+}
