@@ -2412,7 +2412,9 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
       )}
     </div>
   );
-} ─────────────────────────────────────────────────────────
+}
+
+// ─── User Login Gate ─────────────────────────────────────────────────────────
 const USERS = {
   ludvig: { name: "Ludvig", password: "ludvig" },
   johannes: { name: "Johannes", password: "johannes" },
