@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useProjects, useTagColors, useAppSettings, useDocs, useTodos } from "./hooks";
+import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients } from "./hooks";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -286,7 +286,276 @@ const PriorityBadge = ({ priority }) => {
 };
 
 // ─── Project Card ────────────────────────────────────────────────────────────
-const ProjectCard = ({ project, onClick, compact, visibleFields = {}, customFields = [], tagColors = {} }) => {
+
+// ─── Client Dropdown ────────────────────────────────────────────────────────
+const ClientDropdown = ({ value, clients, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  const selected = clients.find(c => c.id === value);
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div
+        onClick={() => setOpen(!open)}
+        style={{
+          padding: "8px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`,
+          background: COLORS.surface, color: COLORS.text, cursor: "pointer",
+          fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}
+      >
+        <span style={{ color: selected ? COLORS.text : COLORS.textMuted }}>
+          {selected ? selected.name : "No client"}
+        </span>
+        <span style={{ fontSize: 10, color: COLORS.textMuted }}>▼</span>
+      </div>
+      {open && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 100,
+          background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.3)", maxHeight: 200, overflowY: "auto",
+        }}>
+          <div
+            onClick={() => { onChange(null); setOpen(false); }}
+            style={{
+              padding: "8px 12px", cursor: "pointer", fontSize: 13, color: COLORS.textMuted,
+              borderBottom: `1px solid ${COLORS.border}`,
+            }}
+            onMouseEnter={e => e.target.style.background = COLORS.surfaceHover}
+            onMouseLeave={e => e.target.style.background = "transparent"}
+          >
+            No client
+          </div>
+          {clients.map(c => (
+            <div
+              key={c.id}
+              onClick={() => { onChange(c.id); setOpen(false); }}
+              style={{
+                padding: "8px 12px", cursor: "pointer", fontSize: 13, color: COLORS.text,
+                background: c.id === value ? COLORS.surfaceActive : "transparent",
+              }}
+              onMouseEnter={e => e.target.style.background = COLORS.surfaceHover}
+              onMouseLeave={e => e.target.style.background = c.id === value ? COLORS.surfaceActive : "transparent"}
+            >
+              {c.name}
+              {c.industry && <span style={{ marginLeft: 6, fontSize: 11, color: COLORS.textMuted }}>· {c.industry}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Client Profile Modal ──────────────────────────────────────────────────
+const ClientProfileModal = ({ client, onSave, onClose }) => {
+  const [form, setForm] = useState({
+    name: client?.name || "",
+    contactName: client?.contactName || client?.contact_name || "",
+    contactEmail: client?.contactEmail || client?.contact_email || "",
+    industry: client?.industry || "",
+    notes: client?.notes || "",
+    brandContext: client?.brandContext || client?.brand_context || {
+      toneOfVoice: "",
+      guidelines: "",
+      preferences: "",
+      learnings: "",
+    },
+  });
+  const upd = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+  const updBrand = (k, v) => setForm(prev => ({ ...prev, brandContext: { ...prev.brandContext, [k]: v } }));
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000,
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }} onClick={onClose}>
+      <div style={{
+        background: COLORS.surface, borderRadius: 16, width: "100%", maxWidth: 600,
+        maxHeight: "90vh", overflow: "auto", padding: 28,
+        border: `1px solid ${COLORS.border}`,
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+          <h2 style={{ margin: 0, fontSize: 20, color: COLORS.text }}>{client?.id ? "Edit Client" : "New Client"}</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: COLORS.textMuted, fontSize: 20, cursor: "pointer" }}>✕</button>
+        </div>
+
+        {/* Basic Info */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6 }}>Company Name *</label>
+          <input value={form.name} onChange={e => upd("name", e.target.value)}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+            placeholder="e.g. Acme Corp" />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+          <div>
+            <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6 }}>Contact Name</label>
+            <input value={form.contactName} onChange={e => upd("contactName", e.target.value)}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+              placeholder="Jane Doe" />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6 }}>Contact Email</label>
+            <input value={form.contactEmail} onChange={e => upd("contactEmail", e.target.value)}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+              placeholder="jane@acme.com" />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6 }}>Industry</label>
+          <input value={form.industry} onChange={e => upd("industry", e.target.value)}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+            placeholder="e.g. SaaS, E-commerce, Finance" />
+        </div>
+
+        {/* Brand Context */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 16 }}>🎨</span> Brand Context
+            <span style={{ fontSize: 11, color: COLORS.textMuted, fontWeight: 400 }}>— Kit reads this when creating content</span>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6 }}>Tone of Voice</label>
+            <textarea value={form.brandContext.toneOfVoice || ""} onChange={e => updBrand("toneOfVoice", e.target.value)}
+              rows={2} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
+              placeholder="e.g. Professional but friendly, data-driven, avoid jargon..." />
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6 }}>Brand Guidelines</label>
+            <textarea value={form.brandContext.guidelines || ""} onChange={e => updBrand("guidelines", e.target.value)}
+              rows={2} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
+              placeholder="e.g. Always use Oxford comma, brand colors are #2D5BFF and #1A1A2E..." />
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6 }}>Preferences & Rules</label>
+            <textarea value={form.brandContext.preferences || ""} onChange={e => updBrand("preferences", e.target.value)}
+              rows={2} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
+              placeholder="e.g. Never mention competitors, focus on sustainability messaging..." />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6 }}>Learnings & Notes</label>
+            <textarea value={form.brandContext.learnings || ""} onChange={e => updBrand("learnings", e.target.value)}
+              rows={2} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
+              placeholder="e.g. LinkedIn posts with questions get 3x engagement, avoid emojis in emails..." />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 12, color: COLORS.textMuted, display: "block", marginBottom: 6 }}>Internal Notes</label>
+          <textarea value={form.notes} onChange={e => upd("notes", e.target.value)}
+            rows={2} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, background: COLORS.bg, color: COLORS.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
+            placeholder="Any internal notes about this client..." />
+        </div>
+
+        <button
+          onClick={() => { if (form.name.trim()) onSave({ ...client, ...form }); }}
+          disabled={!form.name.trim()}
+          style={{
+            width: "100%", padding: "12px", borderRadius: 10, border: "none",
+            background: form.name.trim() ? COLORS.accent : COLORS.border,
+            color: form.name.trim() ? COLORS.bg : COLORS.textMuted,
+            fontSize: 14, fontWeight: 600, cursor: form.name.trim() ? "pointer" : "default",
+          }}
+        >
+          {client?.id ? "Save Changes" : "Create Client"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ─── Clients View ────────────────────────────────────────────────────────────
+const ClientsView = ({ clients, onEdit, onDelete, projects }) => {
+  const getProjectCount = (clientId) => projects.filter(p => p.clientId === clientId).length;
+  const getActiveCount = (clientId) => projects.filter(p => p.clientId === clientId && p.status === "active").length;
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <h2 style={{ margin: 0, fontSize: 20, color: COLORS.text }}>Clients</h2>
+        <button
+          onClick={() => onEdit({})}
+          style={{
+            padding: "8px 16px", borderRadius: 8, border: "none",
+            background: COLORS.accent, color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}
+        >
+          + New Client
+        </button>
+      </div>
+
+      {clients.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 60, color: COLORS.textMuted }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🏢</div>
+          <div style={{ fontSize: 15, marginBottom: 8 }}>No clients yet</div>
+          <div style={{ fontSize: 13 }}>Add your first client to start organizing projects by brand</div>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+          {clients.map(client => (
+            <div key={client.id} style={{
+              background: COLORS.surface, borderRadius: 12, padding: 20,
+              border: `1px solid ${COLORS.border}`, cursor: "pointer",
+              transition: "border-color 0.2s",
+            }}
+              onClick={() => onEdit(client)}
+              onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.accent}
+              onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.text, marginBottom: 4 }}>{client.name}</div>
+                  {client.industry && <div style={{ fontSize: 12, color: COLORS.textMuted }}>{client.industry}</div>}
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${client.name}"?`)) onDelete(client.id); }}
+                  style={{ background: "none", border: "none", color: COLORS.textMuted, cursor: "pointer", fontSize: 14, padding: 4 }}
+                >✕</button>
+              </div>
+
+              {(client.contact_name || client.contactName) && (
+                <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 8 }}>
+                  {client.contact_name || client.contactName}
+                  {(client.contact_email || client.contactEmail) && ` · ${client.contact_email || client.contactEmail}`}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+                <div style={{ fontSize: 12, color: COLORS.textMuted }}>
+                  <span style={{ fontWeight: 600, color: COLORS.text }}>{getProjectCount(client.id)}</span> projects
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.textMuted }}>
+                  <span style={{ fontWeight: 600, color: COLORS.accent }}>{getActiveCount(client.id)}</span> active
+                </div>
+              </div>
+
+              {(client.brand_context?.toneOfVoice || client.brandContext?.toneOfVoice) && (
+                <div style={{
+                  marginTop: 10, padding: "6px 10px", borderRadius: 6,
+                  background: `${COLORS.accent}10`, fontSize: 11, color: COLORS.accent,
+                }}>
+                  🎨 Brand context configured
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+const ProjectCard = ({ project, onClick, compact, visibleFields = {}, customFields = [], tagColors = {}, clientMap = {} }) => {
   const [hovered, setHovered] = useState(false);
   const vf = { ...DEFAULT_VISIBLE_FIELDS, ...visibleFields };
   const progress = project.endDate && project.dateMode !== "single"
@@ -566,7 +835,7 @@ const TagDropdownInput = ({ value, onChange, onAdd, allTags, currentTags, tagCol
 };
 
 // ─── Project Detail / Editor Modal ───────────────────────────────────────────
-const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], tagColors = {}, allTags = [], onUpdateTagColor }) => {
+const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], tagColors = {}, allTags = [], onUpdateTagColor, clients = [] }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [form, setForm] = useState(
     project || {
@@ -947,7 +1216,7 @@ const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], t
 };
 
 // ─── Project Detail View ────────────────────────────────────────────────────
-const ProjectDetailView = ({ project, onSave, onDelete, onClose, customFields = [], tagColors = {}, allTags = [], onUpdateTagColor, currentUserId }) => {
+const ProjectDetailView = ({ project, onSave, onDelete, onClose, customFields = [], tagColors = {}, allTags = [], onUpdateTagColor, currentUserId, clients = [], clientMap = {} }) => {
   const { todos, loading: todosLoading, addTodo, updateTodo, deleteTodo, addManyTodos } = useTodos(project?.id);
   const [form, setForm] = useState(project);
   const [tagInput, setTagInput] = useState("");
@@ -1379,7 +1648,7 @@ ${transcriptText}`
 };
 
 // ─── Dashboard View ──────────────────────────────────────────────────────────
-const DashboardView = ({ projects, currentUserId, onSelectProject }) => {
+const DashboardView = ({ projects, currentUserId, onSelectProject, clients = [], clientMap = {} }) => {
   const [allTodos, setAllTodos] = useState([]);
   const [todosLoading, setTodosLoading] = useState(true);
 
@@ -1657,7 +1926,7 @@ const DashboardView = ({ projects, currentUserId, onSelectProject }) => {
 };
 
 // ─── Board View ──────────────────────────────────────────────────────────────
-const BoardView = ({ projects, onSelect, visibleFields, customFields, tagColors }) => {
+const BoardView = ({ projects, onSelect, visibleFields, customFields, tagColors, clientMap = {} }) => {
   const columns = Object.keys(STATUS_CONFIG);
 
   return (
@@ -2705,7 +2974,7 @@ const TagManagerModal = ({ tagColors, allTags, onUpdate, onClose }) => {
 };
 
 // ─── AI Chat Assistant ──────────────────────────────────────────────────────
-const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
+const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUserId, onOpenProject, showToast, clients = [], clientMap = {} }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: "assistant", content: "Hey! I'm Kit, your Creatly assistant. I can create projects, add to-dos, write emails & copy based on your brand docs, or just chat. Try talking to me — hit the mic button!" }
@@ -3125,6 +3394,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { tagColors, updateTagColor: handleUpdateTagColor } = useTagColors();
   const { visibleFields, setVisibleFields, customFieldDefs: customFields, setCustomFieldDefs: setCustomFields } = useAppSettings();
   const { docs, loading: docsLoading, saveDoc, deleteDoc } = useDocs();
+  const { clients, clientMap, saveClient, deleteClient } = useClients();
   const [module, setModule] = useState("home");
   const [view, setView] = useState("board");
   const [modal, setModal] = useState(null);
@@ -3133,6 +3403,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const [filterStatus, setFilterStatus] = useState("all");
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
   const [toast, setToast] = useState(null);
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem("creatly_theme") || "dark"; } catch(e) { return "dark"; }
@@ -3513,7 +3784,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
             allTags={allTags}
             onUpdateTagColor={handleUpdateTagColor}
             currentUserId={currentUserId}
-          />
+           clients={clients} clientMap={clientMap} />
         )}
 
         {/* Planner views */}
@@ -3548,7 +3819,11 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
 
         {/* Docs view */}
         {module === "docs" && (
-          <DocsView docs={docs} onSave={(doc) => saveDoc(doc, currentUserId)} onDelete={deleteDoc} theme={theme} />
+          <DocsView docs={docs} onSave={(doc) => saveDoc(doc, currentUserId)}
+
+          {module === "clients" && (
+            <ClientsView clients={clients} projects={projects} onEdit={setEditingClient} onDelete={deleteClient} />
+          )} onDelete={deleteDoc} theme={theme} />
         )}
       </main>
 
@@ -3588,6 +3863,17 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         />
       )}
 
+        {editingClient && (
+          <ClientProfileModal
+            client={editingClient}
+            onSave={async (c) => {
+              await saveClient(c);
+              setEditingClient(null);
+            }}
+            onClose={() => setEditingClient(null)}
+          />
+        )}
+
       {/* AI Chat Assistant */}
       <AiChatAssistant
         projects={projects}
@@ -3597,7 +3883,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         currentUserId={currentUserId}
         onOpenProject={(p) => setDetailProject(p)}
         showToast={showToast}
-      />
+       clients={clients} clientMap={clientMap} />
 
       {/* Toast notification */}
       {toast && (
