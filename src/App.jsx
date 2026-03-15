@@ -2426,6 +2426,309 @@ const TagManagerModal = ({ tagColors, allTags, onUpdate, onClose }) => {
   );
 };
 
+// ─── AI Chat Assistant ──────────────────────────────────────────────────────
+const AiChatAssistant = ({ projects, saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { role: "assistant", content: "Hey! I'm your Creatly assistant. I can create projects, add to-dos, update statuses, or summarize what's on your plate. What do you need?" }
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const buildSystemPrompt = () => {
+    const projectSummary = projects.map(p =>
+      `- "${p.title}" (id:${p.id}, status:${p.status}, priority:${p.priority}, assignee:${p.assignee || "unassigned"}, tags:[${p.tags?.join(",")}])`
+    ).join("\n");
+
+    return `You are Creatly Assistant, an AI helper inside a project planner app for Hatstore (Swedish e-commerce headwear brand). Users are Ludvig and Johannes.
+
+CURRENT PROJECTS:
+${projectSummary || "(no projects yet)"}
+
+You can perform actions by including a JSON block in your response wrapped in <actions> tags. Available actions:
+
+1. Create a project:
+<actions>[{"action":"create_project","title":"...","description":"...","status":"backlog","priority":"medium","assignee":"ludvig"|"johannes"|null,"tags":["tag1"],"dateMode":"range","startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD"}]</actions>
+
+2. Update a project:
+<actions>[{"action":"update_project","id":"project-uuid","updates":{"status":"active","priority":"high","assignee":"ludvig"}}]</actions>
+
+3. Delete a project:
+<actions>[{"action":"delete_project","id":"project-uuid"}]</actions>
+
+4. Add to-dos to a project (requires project id):
+<actions>[{"action":"add_todos","project_id":"project-uuid","todos":[{"text":"task text","assignee":"ludvig"|"johannes"|null}]}]</actions>
+
+RULES:
+- Always respond conversationally AND include actions when the user wants something done.
+- For new projects, use sensible defaults: status=backlog, priority=medium, dateMode=range, startDate=today, endDate=2 weeks from now.
+- Today's date is ${new Date().toISOString().split("T")[0]}.
+- When a user pastes a meeting transcript, create a project AND extract to-dos from it.
+- When asked about what's going on, summarize projects grouped by status.
+- Keep responses short and punchy. No fluff.
+- If you need to reference a project, use its title — the user doesn't know UUIDs.
+- You can include multiple actions in one response.`;
+  };
+
+  const executeActions = async (actionsText) => {
+    try {
+      const actions = JSON.parse(actionsText);
+      for (const action of actions) {
+        if (action.action === "create_project") {
+          const project = {
+            id: uid(),
+            title: action.title || "Untitled",
+            description: action.description || "",
+            status: action.status || "backlog",
+            priority: action.priority || "medium",
+            assignee: action.assignee || null,
+            dateMode: action.dateMode || "range",
+            startDate: action.startDate || new Date().toISOString().split("T")[0],
+            endDate: action.endDate || new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
+            tags: action.tags || [],
+            notes: action.notes || "",
+            customFields: {},
+            created: new Date().toISOString(),
+          };
+          await saveProject(project, currentUserId);
+          showToast(`Created project "${project.title}"`);
+
+          // If there are todos bundled with project creation
+          if (action.todos && action.todos.length > 0) {
+            const { supabase } = await import("./supabase");
+            const startOrder = 0;
+            const rows = action.todos.map((item, i) => ({
+              id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+              project_id: project.id,
+              text: item.text,
+              assignee: item.assignee || null,
+              done: false,
+              sort_order: startOrder + i,
+              created_at: new Date().toISOString(),
+            }));
+            await supabase.from("todos").upsert(rows);
+          }
+        } else if (action.action === "update_project") {
+          const existing = projects.find(p => p.id === action.id);
+          if (existing) {
+            const updated = { ...existing, ...action.updates };
+            await saveProject(updated, currentUserId);
+            showToast(`Updated "${existing.title}"`);
+          }
+        } else if (action.action === "delete_project") {
+          const existing = projects.find(p => p.id === action.id);
+          if (existing) {
+            await deleteProject(action.id);
+            showToast(`Deleted "${existing.title}"`);
+          }
+        } else if (action.action === "add_todos") {
+          const { supabase } = await import("./supabase");
+          const { data: existingTodos } = await supabase
+            .from("todos")
+            .select("sort_order")
+            .eq("project_id", action.project_id)
+            .order("sort_order", { ascending: false })
+            .limit(1);
+          const startOrder = (existingTodos?.[0]?.sort_order ?? -1) + 1;
+          const rows = action.todos.map((item, i) => ({
+            id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+            project_id: action.project_id,
+            text: item.text,
+            assignee: item.assignee || null,
+            done: false,
+            sort_order: startOrder + i,
+            created_at: new Date().toISOString(),
+          }));
+          await supabase.from("todos").upsert(rows);
+          showToast(`Added ${rows.length} to-do(s)`);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to execute actions:", e);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = { role: "user", content: input.trim() };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setInput("");
+    setLoading(true);
+
+    try {
+      // Build conversation for API (skip first assistant greeting)
+      const apiMessages = newMessages.slice(1).map(m => ({ role: m.role, content: m.content }));
+
+      const response = await fetch("/api/claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          system: buildSystemPrompt(),
+          messages: apiMessages,
+        }),
+      });
+
+      const data = await response.json();
+      const text = data.content?.map(c => c.text || "").join("") || "Sorry, something went wrong.";
+
+      // Extract and execute actions
+      const actionsMatch = text.match(/<actions>([\s\S]*?)<\/actions>/);
+      if (actionsMatch) {
+        await executeActions(actionsMatch[1]);
+      }
+
+      // Clean the display text (remove action tags)
+      const displayText = text.replace(/<actions>[\s\S]*?<\/actions>/g, "").trim();
+      setMessages(prev => [...prev, { role: "assistant", content: displayText }]);
+    } catch (e) {
+      console.error("Chat error:", e);
+      setMessages(prev => [...prev, { role: "assistant", content: "Oops, couldn't reach the AI. Try again." }]);
+    }
+    setLoading(false);
+  };
+
+  const inputStyle = {
+    background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 8,
+    padding: "10px 14px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%",
+    boxSizing: "border-box", fontFamily: "inherit",
+  };
+
+  // Floating button
+  if (!open) {
+    return (
+      <div
+        onClick={() => setOpen(true)}
+        style={{
+          position: "fixed", bottom: 24, right: 24, zIndex: 9998,
+          width: 52, height: 52, borderRadius: "50%",
+          background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentDim})`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", boxShadow: "0 4px 20px rgba(122,207,133,0.4)",
+          transition: "transform 0.2s, box-shadow 0.2s",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.boxShadow = "0 6px 28px rgba(122,207,133,0.5)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 20px rgba(122,207,133,0.4)"; }}
+        title="Creatly Assistant"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.49 3.53 1.34 5L2 22l5-1.34C8.47 21.51 10.18 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill={COLORS.bg} stroke={COLORS.bg} strokeWidth="0.5"/>
+          <circle cx="8" cy="12" r="1.5" fill={COLORS.accent}/>
+          <circle cx="12" cy="12" r="1.5" fill={COLORS.accent}/>
+          <circle cx="16" cy="12" r="1.5" fill={COLORS.accent}/>
+        </svg>
+      </div>
+    );
+  }
+
+  // Chat window
+  return (
+    <div style={{
+      position: "fixed", bottom: 24, right: 24, zIndex: 9998,
+      width: 400, maxWidth: "calc(100vw - 48px)", height: 520, maxHeight: "calc(100vh - 100px)",
+      background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 16,
+      boxShadow: "0 16px 60px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column",
+      overflow: "hidden",
+    }}>
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "14px 18px", borderBottom: `1px solid ${COLORS.border}`,
+        background: COLORS.surface,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: "50%",
+            background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accentDim})`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <span style={{ fontSize: 14 }}>✨</span>
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Creatly Assistant</div>
+            <div style={{ fontSize: 10, color: COLORS.textDim }}>AI-powered project helper</div>
+          </div>
+        </div>
+        <button
+          onClick={() => setOpen(false)}
+          style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.textMuted, padding: 4 }}
+        >
+          <Icon name="x" size={18} />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflow: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+        {messages.map((msg, i) => (
+          <div key={i} style={{
+            display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+          }}>
+            <div style={{
+              maxWidth: "85%", padding: "10px 14px", borderRadius: 12,
+              background: msg.role === "user" ? COLORS.accent : COLORS.surfaceActive,
+              color: msg.role === "user" ? COLORS.bg : COLORS.text,
+              fontSize: 13, lineHeight: 1.5,
+              borderBottomRightRadius: msg.role === "user" ? 4 : 12,
+              borderBottomLeftRadius: msg.role === "assistant" ? 4 : 12,
+              whiteSpace: "pre-wrap",
+            }}>
+              {msg.content}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ display: "flex", justifyContent: "flex-start" }}>
+            <div style={{
+              padding: "10px 14px", borderRadius: 12, borderBottomLeftRadius: 4,
+              background: COLORS.surfaceActive, color: COLORS.textDim, fontSize: 13,
+            }}>
+              Thinking...
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ padding: "12px 16px", borderTop: `1px solid ${COLORS.border}` }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+            }}
+            placeholder="Ask me anything... create projects, add tasks, get summaries"
+            rows={2}
+            style={{ ...inputStyle, resize: "none", lineHeight: 1.4 }}
+            disabled={loading}
+          />
+          <button
+            onClick={handleSend}
+            disabled={loading || !input.trim()}
+            style={{
+              background: loading ? COLORS.surfaceActive : COLORS.accent,
+              border: "none", borderRadius: 8, padding: "0 14px",
+              color: loading ? COLORS.textDim : COLORS.bg,
+              fontSize: 16, cursor: loading ? "wait" : "pointer",
+              alignSelf: "flex-end", height: 38, flexShrink: 0,
+            }}
+          >
+            ↑
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main App ────────────────────────────────────────────────────────────────
 function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { projects, loading, saveProject, deleteProject } = useProjects();
@@ -2883,10 +3186,20 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         />
       )}
 
+      {/* AI Chat Assistant */}
+      <AiChatAssistant
+        projects={projects}
+        saveProject={saveProject}
+        deleteProject={deleteProject}
+        currentUserId={currentUserId}
+        onOpenProject={(p) => setDetailProject(p)}
+        showToast={showToast}
+      />
+
       {/* Toast notification */}
       {toast && (
         <div style={{
-          position: "fixed", bottom: 24, right: 24, zIndex: 9999,
+          position: "fixed", bottom: 24, left: 24, zIndex: 9999,
           background: COLORS.surface, border: `1px solid ${COLORS.accent}44`,
           borderRadius: 8, padding: "12px 18px", boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
           display: "flex", alignItems: "center", gap: 10, animation: "fadeIn 0.3s ease",
