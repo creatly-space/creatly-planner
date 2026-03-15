@@ -2427,10 +2427,10 @@ const TagManagerModal = ({ tagColors, allTags, onUpdate, onClose }) => {
 };
 
 // ─── AI Chat Assistant ──────────────────────────────────────────────────────
-const AiChatAssistant = ({ projects, saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
+const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: "assistant", content: "Hey! I'm your Creatly assistant. I can create projects, add to-dos, update statuses, or summarize what's on your plate. What do you need?" }
+    { role: "assistant", content: "Hey! I'm your Creatly assistant. I can create projects, add to-dos, write emails & copy based on your brand docs, or summarize what's on your plate. What do you need?" }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -2445,15 +2445,31 @@ const AiChatAssistant = ({ projects, saveProject, deleteProject, currentUserId, 
       `- "${p.title}" (id:${p.id}, status:${p.status}, priority:${p.priority}, assignee:${p.assignee || "unassigned"}, tags:[${p.tags?.join(",")}])`
     ).join("\n");
 
-    return `You are Creatly Assistant, an AI helper inside a project planner app for Hatstore (Swedish e-commerce headwear brand). Users are Ludvig and Johannes.
+    // Build knowledge base from docs — prioritize Brand Guidelines, Templates, SOPs
+    const priorityFolders = ["Brand Guidelines", "Templates", "SOPs", "Strategy"];
+    const sortedDocs = [...(docs || [])].sort((a, b) => {
+      const aP = priorityFolders.indexOf(a.folder);
+      const bP = priorityFolders.indexOf(b.folder);
+      return (aP === -1 ? 99 : aP) - (bP === -1 ? 99 : bP);
+    });
+    const docsContext = sortedDocs
+      .filter(d => d.content && d.content.trim())
+      .slice(0, 10) // limit to 10 docs to manage token usage
+      .map(d => `[${d.folder || "General"}] ${d.title}:\n${d.content.slice(0, 1500)}`)
+      .join("\n\n---\n\n");
+
+    return `You are Creatly Assistant, an AI helper inside a project planner app called Creatly. Users are Ludvig and Johannes.
 
 CURRENT PROJECTS:
 ${projectSummary || "(no projects yet)"}
 
+KNOWLEDGE BASE (from Creatly Docs — use this for brand context, tone, templates, and best practices when creating content):
+${docsContext || "(no docs yet — ask the user to add brand guidelines, templates, and SOPs to Creatly Docs)"}
+
 You can perform actions by including a JSON block in your response wrapped in <actions> tags. Available actions:
 
 1. Create a project:
-<actions>[{"action":"create_project","title":"...","description":"...","status":"backlog","priority":"medium","assignee":"ludvig"|"johannes"|null,"tags":["tag1"],"dateMode":"range","startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD"}]</actions>
+<actions>[{"action":"create_project","title":"...","description":"...","status":"backlog","priority":"medium","assignee":"ludvig"|"johannes"|null,"tags":["tag1"],"dateMode":"range","startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD","todos":[{"text":"task","assignee":"ludvig"|null}]}]</actions>
 
 2. Update a project:
 <actions>[{"action":"update_project","id":"project-uuid","updates":{"status":"active","priority":"high","assignee":"ludvig"}}]</actions>
@@ -2469,10 +2485,13 @@ RULES:
 - For new projects, use sensible defaults: status=backlog, priority=medium, dateMode=range, startDate=today, endDate=2 weeks from now.
 - Today's date is ${new Date().toISOString().split("T")[0]}.
 - When a user pastes a meeting transcript, create a project AND extract to-dos from it.
+- When asked to write content (emails, copy, briefs, etc.), ALWAYS check the Knowledge Base first for tone of voice, brand guidelines, templates, and best practices. Apply them to everything you write.
+- When creating projects that involve content deliverables, put the actual written content (email copy, ad copy, briefs, etc.) in the project description AND break down the execution steps as to-dos.
 - When asked about what's going on, summarize projects grouped by status.
 - Keep responses short and punchy. No fluff.
 - If you need to reference a project, use its title — the user doesn't know UUIDs.
-- You can include multiple actions in one response.`;
+- You can include multiple actions in one response.
+- If the user asks you to create content but there are no brand docs in the Knowledge Base yet, remind them to add tone of voice and brand guidelines to Creatly Docs first for best results.`;
   };
 
   const executeActions = async (actionsText) => {
@@ -3189,6 +3208,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
       {/* AI Chat Assistant */}
       <AiChatAssistant
         projects={projects}
+        docs={docs}
         saveProject={saveProject}
         deleteProject={deleteProject}
         currentUserId={currentUserId}
