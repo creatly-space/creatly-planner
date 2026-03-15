@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useProjects, useTagColors, useAppSettings, useDocs } from "./hooks";
+import { useProjects, useTagColors, useAppSettings, useDocs, useTodos } from "./hooks";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -355,6 +355,23 @@ const ProjectCard = ({ project, onClick, compact, visibleFields = {}, customFiel
         </div>
       )}
 
+      {/* Assignee avatar */}
+      {project.assignee && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>
+          <div style={{
+            width: 22, height: 22, borderRadius: "50%",
+            background: project.assignee === "ludvig" ? COLORS.accent : COLORS.purple,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 10, fontWeight: 700, color: COLORS.bg, flexShrink: 0,
+          }}>
+            {project.assignee === "ludvig" ? "L" : "J"}
+          </div>
+          <span style={{ fontSize: 11, color: COLORS.textMuted }}>
+            {project.assignee === "ludvig" ? "Ludvig" : "Johannes"}
+          </span>
+        </div>
+      )}
+
       {vf.notes && project.notes && (
         <p style={{ fontSize: 11, color: COLORS.textDim, margin: "8px 0 0", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden", fontStyle: "italic" }}>
           {project.notes}
@@ -684,8 +701,8 @@ const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], t
             />
           </div>
 
-          {/* Status & Priority Row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {/* Status & Priority & Assignee Row */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
             <div>
               <label style={labelStyle}>Status</label>
               <select value={form.status} onChange={(e) => update("status", e.target.value)} style={selectStyle}>
@@ -700,6 +717,14 @@ const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], t
                 {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
                   <option key={k} value={k}>{v.label}</option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Assignee</label>
+              <select value={form.assignee || ""} onChange={(e) => update("assignee", e.target.value || null)} style={selectStyle}>
+                <option value="">Unassigned</option>
+                <option value="ludvig">Ludvig</option>
+                <option value="johannes">Johannes</option>
               </select>
             </div>
           </div>
@@ -914,6 +939,438 @@ const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], t
             >
               {isNew ? "Create Project" : "Save Changes"}
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Project Detail View ────────────────────────────────────────────────────
+const ProjectDetailView = ({ project, onSave, onDelete, onClose, customFields = [], tagColors = {}, allTags = [], onUpdateTagColor, currentUserId }) => {
+  const { todos, loading: todosLoading, addTodo, updateTodo, deleteTodo, addManyTodos } = useTodos(project?.id);
+  const [form, setForm] = useState(project);
+  const [tagInput, setTagInput] = useState("");
+  const [newTodoText, setNewTodoText] = useState("");
+  const [newTodoAssignee, setNewTodoAssignee] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [transcriptText, setTranscriptText] = useState("");
+  const [showTranscript, setShowTranscript] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const saveTimerRef = useRef(null);
+
+  // Update form when project changes (realtime)
+  useEffect(() => {
+    if (project) setForm(project);
+  }, [project]);
+
+  const update = (key, val) => {
+    const updated = { ...form, [key]: val };
+    setForm(updated);
+    // Debounced auto-save
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      onSave(updated);
+    }, 800);
+  };
+
+  const addTag = () => {
+    const tag = tagInput.trim().toLowerCase();
+    if (tag && !form.tags.includes(tag)) {
+      update("tags", [...form.tags, tag]);
+    }
+    setTagInput("");
+  };
+
+  const handleAddTodo = () => {
+    if (!newTodoText.trim()) return;
+    addTodo(newTodoText.trim(), newTodoAssignee || null);
+    setNewTodoText("");
+    setNewTodoAssignee("");
+  };
+
+  const handleExtractFromTranscript = () => {
+    if (!transcriptText.trim()) return;
+    setAiLoading(true);
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2000,
+        messages: [{
+          role: "user",
+          content: `You are a task extraction assistant. Analyze this meeting transcript and extract all action items, to-dos, and tasks mentioned. For each task, try to identify who it's assigned to (look for names like Ludvig or Johannes).
+
+Return ONLY a valid JSON array with objects like: [{"text": "task description", "assignee": "ludvig" or "johannes" or null}]
+
+Do not include any other text, markdown, or explanation. Just the JSON array.
+
+Meeting transcript:
+${transcriptText}`
+        }],
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const text = data.content?.map((c) => c.text || "").join("") || "[]";
+        try {
+          // Strip markdown code fences if present
+          const clean = text.replace(/```json\s*|```/g, "").trim();
+          const tasks = JSON.parse(clean);
+          if (Array.isArray(tasks) && tasks.length > 0) {
+            addManyTodos(tasks);
+            setTranscriptText("");
+            setShowTranscript(false);
+          }
+        } catch (e) {
+          console.error("Failed to parse AI response:", e, text);
+        }
+        setAiLoading(false);
+      })
+      .catch((err) => {
+        console.error("AI extraction failed:", err);
+        setAiLoading(false);
+      });
+  };
+
+  const selectStyle = {
+    background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6,
+    padding: "8px 12px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%",
+    appearance: "none", cursor: "pointer",
+  };
+
+  const inputStyle = {
+    background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6,
+    padding: "8px 12px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box",
+  };
+
+  const labelStyle = {
+    fontSize: 11, color: COLORS.textMuted, fontWeight: 600, letterSpacing: "0.06em",
+    textTransform: "uppercase", marginBottom: 6, display: "block",
+  };
+
+  const doneCount = todos.filter(t => t.done).length;
+  const todoCount = todos.length;
+
+  return (
+    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0" }}>
+      {/* Back button */}
+      <button
+        onClick={() => { if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); onSave(form); } onClose(); }}
+        style={{
+          background: "none", border: "none", color: COLORS.accent, fontSize: 13, cursor: "pointer",
+          padding: "0 0 20px", display: "flex", alignItems: "center", gap: 6,
+        }}
+      >
+        ← Back to board
+      </button>
+
+      <div className="creatly-detail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        {/* ─── LEFT: Project Info ─── */}
+        <div>
+          {/* Title */}
+          <input
+            value={form.title}
+            onChange={(e) => update("title", e.target.value)}
+            style={{
+              ...inputStyle, fontSize: 22, fontWeight: 700, padding: "12px 0", background: "transparent",
+              border: "none", borderBottom: `1px solid ${COLORS.border}`, borderRadius: 0, marginBottom: 20, width: "100%",
+            }}
+          />
+
+          {/* Description */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => update("description", e.target.value)}
+              placeholder="Brief overview..."
+              rows={3}
+              style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+            />
+          </div>
+
+          {/* Status, Priority, Assignee */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
+            <div>
+              <label style={labelStyle}>Status</label>
+              <select value={form.status} onChange={(e) => update("status", e.target.value)} style={selectStyle}>
+                {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Priority</label>
+              <select value={form.priority} onChange={(e) => update("priority", e.target.value)} style={selectStyle}>
+                {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Assignee</label>
+              <select value={form.assignee || ""} onChange={(e) => update("assignee", e.target.value || null)} style={selectStyle}>
+                <option value="">Unassigned</option>
+                <option value="ludvig">Ludvig</option>
+                <option value="johannes">Johannes</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Date Mode + Dates */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Date Type</label>
+            <div style={{ display: "flex", gap: 2, background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden", marginBottom: 12, width: "fit-content" }}>
+              {[{ key: "single", label: "Single" }, { key: "range", label: "Range" }].map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => { update("dateMode", opt.key); if (opt.key === "single") update("endDate", form.startDate); }}
+                  style={{
+                    background: (form.dateMode || "range") === opt.key ? COLORS.bg : "transparent",
+                    border: "none", padding: "5px 12px", cursor: "pointer",
+                    color: (form.dateMode || "range") === opt.key ? COLORS.accent : COLORS.textDim,
+                    fontSize: 12, fontWeight: (form.dateMode || "range") === opt.key ? 600 : 400,
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {(form.dateMode || "range") === "single" ? (
+              <input type="date" value={toInputDate(form.startDate)} onChange={(e) => { update("startDate", e.target.value); update("endDate", e.target.value); }} style={inputStyle} />
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Start</label>
+                  <input type="date" value={toInputDate(form.startDate)} onChange={(e) => update("startDate", e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>End</label>
+                  <input type="date" value={toInputDate(form.endDate)} onChange={(e) => update("endDate", e.target.value)} style={inputStyle} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Tags */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Tags</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: form.tags?.length ? 8 : 0 }}>
+              {form.tags?.map((t) => (
+                <Tag key={t} label={t} color={tagColors[t]} onRemove={() => update("tags", form.tags.filter((x) => x !== t))} />
+              ))}
+            </div>
+            <TagDropdownInput
+              value={tagInput} onChange={setTagInput} onAdd={addTag}
+              allTags={allTags} currentTags={form.tags || []} tagColors={tagColors}
+              onUpdateTagColor={onUpdateTagColor}
+              onSelectTag={(tag) => { if (!form.tags?.includes(tag)) update("tags", [...(form.tags || []), tag]); }}
+              inputStyle={inputStyle}
+            />
+          </div>
+
+          {/* Notes */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Notes</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => update("notes", e.target.value)}
+              placeholder="Internal notes, links, ideas..."
+              rows={4}
+              style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+            />
+          </div>
+
+          {/* Delete */}
+          <div style={{ paddingTop: 12, borderTop: `1px solid ${COLORS.border}` }}>
+            {!confirmDelete ? (
+              <button onClick={() => setConfirmDelete(true)} style={{ background: "none", border: `1px solid ${COLORS.danger}33`, borderRadius: 6, padding: "8px 14px", color: COLORS.danger, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                <Icon name="trash" size={14} color={COLORS.danger} /> Delete Project
+              </button>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, color: COLORS.danger }}>Delete this project?</span>
+                <button onClick={() => { onDelete(form.id); onClose(); }} style={{ background: COLORS.danger, border: "none", borderRadius: 6, padding: "8px 14px", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Yes, delete</button>
+                <button onClick={() => setConfirmDelete(false)} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 14px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ─── RIGHT: To-Do List ─── */}
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: COLORS.text }}>To-Do</h3>
+              {todoCount > 0 && (
+                <span style={{ fontSize: 12, color: COLORS.textDim }}>
+                  {doneCount}/{todoCount} done
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setShowTranscript(!showTranscript)}
+              style={{
+                background: showTranscript ? `${COLORS.accent}15` : "transparent",
+                border: `1px solid ${showTranscript ? COLORS.accent + "44" : COLORS.border}`,
+                borderRadius: 6, padding: "6px 12px", cursor: "pointer",
+                color: showTranscript ? COLORS.accent : COLORS.textMuted, fontSize: 12, fontWeight: 500,
+                display: "flex", alignItems: "center", gap: 5,
+              }}
+            >
+              ✨ Extract from transcript
+            </button>
+          </div>
+
+          {/* Progress bar */}
+          {todoCount > 0 && (
+            <div style={{ height: 4, background: COLORS.border, borderRadius: 2, overflow: "hidden", marginBottom: 16 }}>
+              <div style={{
+                height: "100%", width: `${(doneCount / todoCount) * 100}%`,
+                background: COLORS.accent, borderRadius: 2, transition: "width 0.3s ease",
+              }} />
+            </div>
+          )}
+
+          {/* AI Transcript Input */}
+          {showTranscript && (
+            <div style={{
+              background: `${COLORS.accent}08`, border: `1px solid ${COLORS.accent}22`, borderRadius: 8,
+              padding: 14, marginBottom: 16,
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent, marginBottom: 8 }}>
+                ✨ Paste meeting transcript
+              </div>
+              <textarea
+                value={transcriptText}
+                onChange={(e) => setTranscriptText(e.target.value)}
+                placeholder="Paste your meeting transcript here... AI will extract action items and create to-dos automatically."
+                rows={6}
+                style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5, marginBottom: 8 }}
+                disabled={aiLoading}
+              />
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => { setShowTranscript(false); setTranscriptText(""); }}
+                  style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 14px", color: COLORS.textMuted, fontSize: 12, cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleExtractFromTranscript}
+                  disabled={aiLoading || !transcriptText.trim()}
+                  style={{
+                    background: aiLoading ? COLORS.surfaceActive : COLORS.accent,
+                    border: "none", borderRadius: 6, padding: "6px 18px",
+                    color: aiLoading ? COLORS.textDim : COLORS.bg, fontSize: 12, fontWeight: 600,
+                    cursor: aiLoading ? "wait" : "pointer",
+                  }}
+                >
+                  {aiLoading ? "Extracting..." : "Extract Tasks"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Add new todo */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <input
+              value={newTodoText}
+              onChange={(e) => setNewTodoText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddTodo()}
+              placeholder="Add a to-do..."
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <select
+              value={newTodoAssignee}
+              onChange={(e) => setNewTodoAssignee(e.target.value)}
+              style={{ ...selectStyle, width: 110 }}
+            >
+              <option value="">Anyone</option>
+              <option value="ludvig">Ludvig</option>
+              <option value="johannes">Johannes</option>
+            </select>
+            <button
+              onClick={handleAddTodo}
+              disabled={!newTodoText.trim()}
+              style={{
+                background: COLORS.accent, border: "none", borderRadius: 6, padding: "0 14px",
+                color: COLORS.bg, fontSize: 20, fontWeight: 600, cursor: "pointer", lineHeight: 1,
+              }}
+            >
+              +
+            </button>
+          </div>
+
+          {/* Todo list */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {todosLoading && <div style={{ padding: 20, textAlign: "center", color: COLORS.textDim, fontSize: 13 }}>Loading...</div>}
+            {!todosLoading && todos.length === 0 && (
+              <div style={{ padding: 30, textAlign: "center", color: COLORS.textDim, fontSize: 13, border: `1px dashed ${COLORS.border}`, borderRadius: 8 }}>
+                No to-dos yet. Add one above or extract from a meeting transcript.
+              </div>
+            )}
+            {todos.map((todo) => (
+              <div
+                key={todo.id}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+                  background: todo.done ? "transparent" : COLORS.surface,
+                  border: `1px solid ${todo.done ? "transparent" : COLORS.border}`,
+                  borderRadius: 6, transition: "all 0.15s",
+                  opacity: todo.done ? 0.5 : 1,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={todo.done}
+                  onChange={(e) => updateTodo(todo.id, { done: e.target.checked })}
+                  style={{ accentColor: COLORS.accent, width: 16, height: 16, cursor: "pointer", flexShrink: 0 }}
+                />
+                <span style={{
+                  flex: 1, fontSize: 13, color: COLORS.text,
+                  textDecoration: todo.done ? "line-through" : "none",
+                }}>
+                  {todo.text}
+                </span>
+                {/* Assignee badge */}
+                {todo.assignee && (
+                  <div style={{
+                    width: 20, height: 20, borderRadius: "50%",
+                    background: todo.assignee === "ludvig" ? COLORS.accent : COLORS.purple,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 9, fontWeight: 700, color: COLORS.bg, flexShrink: 0,
+                  }} title={todo.assignee === "ludvig" ? "Ludvig" : "Johannes"}>
+                    {todo.assignee === "ludvig" ? "L" : "J"}
+                  </div>
+                )}
+                {/* Assignee dropdown */}
+                <select
+                  value={todo.assignee || ""}
+                  onChange={(e) => updateTodo(todo.id, { assignee: e.target.value || null })}
+                  style={{
+                    background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 4,
+                    padding: "2px 4px", color: COLORS.textMuted, fontSize: 10, outline: "none",
+                    appearance: "none", cursor: "pointer", width: 70,
+                  }}
+                >
+                  <option value="">—</option>
+                  <option value="ludvig">Ludvig</option>
+                  <option value="johannes">Johannes</option>
+                </select>
+                {/* Delete */}
+                <span
+                  onClick={() => deleteTodo(todo.id)}
+                  style={{ cursor: "pointer", color: COLORS.textDim, fontSize: 14, padding: "0 2px", lineHeight: 1 }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = COLORS.danger}
+                  onMouseLeave={(e) => e.currentTarget.style.color = COLORS.textDim}
+                >
+                  ×
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -1978,6 +2435,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const [module, setModule] = useState("planner");
   const [view, setView] = useState("board");
   const [modal, setModal] = useState(null);
+  const [detailProject, setDetailProject] = useState(null);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [showFieldSettings, setShowFieldSettings] = useState(false);
@@ -2048,9 +2506,20 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
     setModal(null);
   };
 
+  const handleDetailSave = (project) => {
+    saveProject(project, currentUserId);
+    // Update the detailProject reference so the view stays in sync
+    setDetailProject(project);
+  };
+
   const handleDelete = (id) => {
     deleteProject(id);
     setModal(null);
+    setDetailProject(null);
+  };
+
+  const handleCardClick = (project) => {
+    setDetailProject(project);
   };
 
   const handleUpdateVisible = (key, value) => {
@@ -2111,6 +2580,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           .creatly-list-row { grid-template-columns: 1fr auto !important; }
           .creatly-list-header { display: none !important; }
           .creatly-list-tags, .creatly-list-date { display: none !important; }
+          .creatly-detail-layout { grid-template-columns: 1fr !important; }
           main { padding: 12px !important; }
         }
       `}</style>
@@ -2325,14 +2795,29 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
       </header>
 
       {/* Content */}
-      <main style={{ padding: 24, maxWidth: module === "planner" && view === "timeline" ? "none" : 1400, margin: "0 auto" }}>
+      <main style={{ padding: 24, maxWidth: module === "planner" && view === "timeline" && !detailProject ? "none" : 1400, margin: "0 auto" }}>
+        {/* Project Detail View */}
+        {module === "planner" && detailProject && (
+          <ProjectDetailView
+            project={projects.find(p => p.id === detailProject.id) || detailProject}
+            onSave={handleDetailSave}
+            onDelete={handleDelete}
+            onClose={() => setDetailProject(null)}
+            customFields={customFields}
+            tagColors={tagColors}
+            allTags={allTags}
+            onUpdateTagColor={handleUpdateTagColor}
+            currentUserId={currentUserId}
+          />
+        )}
+
         {/* Planner views */}
-        {module === "planner" && (
+        {module === "planner" && !detailProject && (
           <>
-            {view === "board" && <BoardView projects={filtered} onSelect={setModal} visibleFields={visibleFields} customFields={customFields} tagColors={tagColors} />}
-            {view === "timeline" && <TimelineView projects={filtered} onSelect={setModal} />}
-            {view === "calendar" && <CalendarView projects={filtered} onSelect={setModal} />}
-            {view === "list" && <ListView projects={filtered} onSelect={setModal} />}
+            {view === "board" && <BoardView projects={filtered} onSelect={handleCardClick} visibleFields={visibleFields} customFields={customFields} tagColors={tagColors} />}
+            {view === "timeline" && <TimelineView projects={filtered} onSelect={handleCardClick} />}
+            {view === "calendar" && <CalendarView projects={filtered} onSelect={handleCardClick} />}
+            {view === "list" && <ListView projects={filtered} onSelect={handleCardClick} />}
 
             {filtered.length === 0 && (
               <div style={{ textAlign: "center", padding: 60, color: COLORS.textDim }}>
@@ -2362,10 +2847,10 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         )}
       </main>
 
-      {/* Project Modal */}
-      {modal && (
+      {/* Project Modal (new projects only) */}
+      {modal === "new" && (
         <ProjectModal
-          project={modal === "new" ? null : modal}
+          project={null}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => setModal(null)}

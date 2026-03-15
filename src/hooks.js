@@ -14,6 +14,7 @@ const dbToProject = (row) => ({
   tags: row.tags || [],
   notes: row.notes || '',
   customFields: row.custom_fields || {},
+  assignee: row.assignee || null,
   created: row.created_at,
   updatedBy: row.updated_by || null,
 })
@@ -30,6 +31,7 @@ const projectToDb = (p, userId) => ({
   tags: p.tags,
   notes: p.notes,
   custom_fields: p.customFields || {},
+  assignee: p.assignee || null,
   updated_at: new Date().toISOString(),
   updated_by: userId || null,
 })
@@ -39,7 +41,6 @@ export function useProjects() {
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Initial fetch
   useEffect(() => {
     const fetch = async () => {
       const { data, error } = await supabase
@@ -52,7 +53,6 @@ export function useProjects() {
     fetch()
   }, [])
 
-  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel('projects-changes')
@@ -76,7 +76,6 @@ export function useProjects() {
     const dbRow = projectToDb(project, userId)
     const { error } = await supabase.from('projects').upsert(dbRow)
     if (error) console.error('Save error:', error)
-    // Optimistic update
     setProjects(prev => {
       const idx = prev.findIndex(p => p.id === project.id)
       if (idx >= 0) {
@@ -248,4 +247,92 @@ export function useDocs() {
   }, [])
 
   return { docs, loading: loading, saveDoc, deleteDoc }
+}
+
+// ─── Todos Hook ──────────────────────────────────────────────────────────────
+export function useTodos(projectId) {
+  const [todos, setTodos] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!projectId) { setTodos([]); setLoading(false); return }
+    setLoading(true)
+    const fetchTodos = async () => {
+      const { data, error } = await supabase
+        .from('todos')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+      if (!error && data) setTodos(data)
+      setLoading(false)
+    }
+    fetchTodos()
+  }, [projectId])
+
+  useEffect(() => {
+    if (!projectId) return
+    const channel = supabase
+      .channel(`todos-${projectId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'todos', filter: `project_id=eq.${projectId}` }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setTodos(prev => {
+            if (prev.find(t => t.id === payload.new.id)) return prev
+            return [...prev, payload.new]
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setTodos(prev => prev.map(t => t.id === payload.new.id ? payload.new : t))
+        } else if (payload.eventType === 'DELETE') {
+          setTodos(prev => prev.filter(t => t.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [projectId])
+
+  const addTodo = useCallback(async (text, assignee = null) => {
+    const maxOrder = todos.length > 0 ? Math.max(...todos.map(t => t.sort_order || 0)) + 1 : 0
+    const row = {
+      id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+      project_id: projectId,
+      text,
+      assignee,
+      done: false,
+      sort_order: maxOrder,
+      created_at: new Date().toISOString(),
+    }
+    setTodos(prev => [...prev, row])
+    const { error } = await supabase.from('todos').upsert(row)
+    if (error) console.error('Add todo error:', error)
+  }, [projectId, todos])
+
+  const updateTodo = useCallback(async (id, updates) => {
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
+    const { error } = await supabase.from('todos').update(updates).eq('id', id)
+    if (error) console.error('Update todo error:', error)
+  }, [])
+
+  const deleteTodo = useCallback(async (id) => {
+    setTodos(prev => prev.filter(t => t.id !== id))
+    const { error } = await supabase.from('todos').delete().eq('id', id)
+    if (error) console.error('Delete todo error:', error)
+  }, [])
+
+  const addManyTodos = useCallback(async (items) => {
+    const startOrder = todos.length > 0 ? Math.max(...todos.map(t => t.sort_order || 0)) + 1 : 0
+    const rows = items.map((item, i) => ({
+      id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+      project_id: projectId,
+      text: item.text,
+      assignee: item.assignee || null,
+      done: false,
+      sort_order: startOrder + i,
+      created_at: new Date().toISOString(),
+    }))
+    setTodos(prev => [...prev, ...rows])
+    const { error } = await supabase.from('todos').upsert(rows)
+    if (error) console.error('Add many todos error:', error)
+  }, [projectId, todos])
+
+  return { todos, loading, addTodo, updateTodo, deleteTodo, addManyTodos }
 }
