@@ -2716,6 +2716,7 @@ const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUs
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
+  const pendingVoiceSend = useRef(false);
 
   useEffect(() => {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -2728,6 +2729,8 @@ const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUs
       setListening(false);
       return;
     }
+    // Stop Kit from talking when user starts speaking
+    window.speechSynthesis?.cancel();
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) { alert("Speech recognition not supported in this browser."); return; }
     const recognition = new SpeechRecognition();
@@ -2739,6 +2742,7 @@ const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUs
       setInput(transcript);
       if (e.results[0].isFinal) {
         setListening(false);
+        pendingVoiceSend.current = true;
       }
     };
     recognition.onerror = () => setListening(false);
@@ -2760,6 +2764,12 @@ const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUs
     const voices = synth.getVoices();
     const preferred = voices.find(v => v.name.includes("Google") && v.lang.startsWith("en")) || voices.find(v => v.lang.startsWith("en"));
     if (preferred) utterance.voice = preferred;
+    // Auto-listen after Kit finishes speaking
+    utterance.onend = () => {
+      setTimeout(() => {
+        if (voiceEnabled && !loading) toggleListening();
+      }, 500);
+    };
     synth.speak(utterance);
   };
 
@@ -2938,6 +2948,15 @@ RULES:
     setLoading(false);
   };
 
+  // Auto-send after voice input finishes
+  useEffect(() => {
+    if (pendingVoiceSend.current && input.trim() && !listening && !loading) {
+      pendingVoiceSend.current = false;
+      const timer = setTimeout(() => handleSend(), 300);
+      return () => clearTimeout(timer);
+    }
+  });
+
   const inputStyle = {
     background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 8,
     padding: "10px 14px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%",
@@ -3050,7 +3069,7 @@ RULES:
               onChange={(e) => setVoiceEnabled(e.target.checked)}
               style={{ accentColor: COLORS.accent, width: 12, height: 12 }}
             />
-            Kit reads responses
+            Conversation mode
           </label>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
