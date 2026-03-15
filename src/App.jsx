@@ -1378,6 +1378,284 @@ ${transcriptText}`
   );
 };
 
+// ─── Dashboard View ──────────────────────────────────────────────────────────
+const DashboardView = ({ projects, currentUserId, onSelectProject }) => {
+  const [allTodos, setAllTodos] = useState([]);
+  const [todosLoading, setTodosLoading] = useState(true);
+
+  // Fetch all todos for current user across all projects
+  useEffect(() => {
+    const fetchAllTodos = async () => {
+      const { supabase } = await import("./supabase");
+      const { data, error } = await supabase
+        .from("todos")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!error && data) setAllTodos(data);
+      setTodosLoading(false);
+    };
+    fetchAllTodos();
+  }, [projects]); // refetch when projects change
+
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+
+  // My tasks (assigned to current user, not done)
+  const myTodos = allTodos.filter(t => !t.done && t.assignee === currentUserId);
+  const myDoneTodos = allTodos.filter(t => t.done && t.assignee === currentUserId);
+
+  // Group projects by status
+  const activeProjects = projects.filter(p => p.status === "active");
+  const reviewProjects = projects.filter(p => p.status === "review");
+  const plannedProjects = projects.filter(p => p.status === "planned");
+  const backlogProjects = projects.filter(p => p.status === "backlog");
+  const doneProjects = projects.filter(p => p.status === "done");
+
+  // Overdue projects
+  const overdueProjects = projects.filter(p =>
+    p.endDate && p.status !== "done" && new Date(p.endDate) < now
+  );
+
+  // Recently updated (last 7 days, by other user)
+  const recentlyUpdated = projects
+    .filter(p => p.updatedBy && p.updatedBy !== currentUserId)
+    .slice(0, 5);
+
+  // Get project title from todo
+  const getProjectTitle = (projectId) => {
+    const p = projects.find(pr => pr.id === projectId);
+    return p ? p.title : "Unknown project";
+  };
+
+  const getProject = (projectId) => projects.find(pr => pr.id === projectId);
+
+  const cardStyle = {
+    background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 12,
+    padding: 20, overflow: "hidden",
+  };
+
+  const headerStyle = {
+    fontSize: 13, fontWeight: 600, color: COLORS.textMuted, letterSpacing: "0.04em",
+    textTransform: "uppercase", marginBottom: 16, display: "flex", alignItems: "center", gap: 8,
+  };
+
+  const userName = currentUserId === "ludvig" ? "Ludvig" : "Johannes";
+
+  return (
+    <div>
+      {/* Greeting */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: COLORS.text, margin: "0 0 6px" }}>
+          Good {now.getHours() < 12 ? "morning" : now.getHours() < 17 ? "afternoon" : "evening"}, {userName}
+        </h1>
+        <p style={{ fontSize: 14, color: COLORS.textDim, margin: 0 }}>
+          {activeProjects.length} active project{activeProjects.length !== 1 ? "s" : ""} · {myTodos.length} task{myTodos.length !== 1 ? "s" : ""} assigned to you
+          {overdueProjects.length > 0 && <span style={{ color: COLORS.danger }}> · {overdueProjects.length} overdue</span>}
+        </p>
+      </div>
+
+      {/* Stats Row */}
+      <div className="creatly-dashboard-stats" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 24 }}>
+        {[
+          { label: "Backlog", count: backlogProjects.length, color: COLORS.textDim },
+          { label: "Planned", count: plannedProjects.length, color: COLORS.blue },
+          { label: "Active", count: activeProjects.length, color: COLORS.accent },
+          { label: "Review", count: reviewProjects.length, color: COLORS.purple },
+          { label: "Done", count: doneProjects.length, color: COLORS.success },
+        ].map(s => (
+          <div key={s.label} style={{
+            ...cardStyle, padding: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+          }}>
+            <span style={{ fontSize: 28, fontWeight: 700, color: s.color }}>{s.count}</span>
+            <span style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.04em" }}>{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Main Grid */}
+      <div className="creatly-dashboard-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+
+        {/* My Tasks */}
+        <div style={cardStyle}>
+          <div style={headerStyle}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.accent }} />
+            My Tasks ({myTodos.length})
+          </div>
+          {todosLoading ? (
+            <div style={{ color: COLORS.textDim, fontSize: 13, padding: 12 }}>Loading...</div>
+          ) : myTodos.length === 0 ? (
+            <div style={{ color: COLORS.textDim, fontSize: 13, padding: 12, textAlign: "center" }}>
+              No tasks assigned to you right now
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 320, overflow: "auto" }}>
+              {myTodos.slice(0, 15).map(todo => {
+                const proj = getProject(todo.project_id);
+                return (
+                  <div
+                    key={todo.id}
+                    onClick={() => proj && onSelectProject(proj)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
+                      borderRadius: 6, cursor: "pointer", transition: "background 0.15s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = COLORS.surfaceHover}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <div style={{
+                      width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                      background: proj ? STATUS_CONFIG[proj.status]?.color || COLORS.textDim : COLORS.textDim,
+                    }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: COLORS.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {todo.text}
+                      </div>
+                      <div style={{ fontSize: 11, color: COLORS.textDim }}>{getProjectTitle(todo.project_id)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {myTodos.length > 15 && (
+            <div style={{ fontSize: 11, color: COLORS.textDim, textAlign: "center", padding: "8px 0 0" }}>
+              +{myTodos.length - 15} more tasks
+            </div>
+          )}
+        </div>
+
+        {/* Active & Review Projects */}
+        <div style={cardStyle}>
+          <div style={headerStyle}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.accent }} />
+            Needs Attention ({activeProjects.length + reviewProjects.length})
+          </div>
+          {[...overdueProjects, ...reviewProjects, ...activeProjects.filter(p => !overdueProjects.includes(p))].length === 0 ? (
+            <div style={{ color: COLORS.textDim, fontSize: 13, padding: 12, textAlign: "center" }}>
+              No active projects right now
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflow: "auto" }}>
+              {[...overdueProjects, ...reviewProjects, ...activeProjects.filter(p => !overdueProjects.includes(p))].slice(0, 10).map(p => {
+                const isOverdue = overdueProjects.includes(p);
+                const todoCount = allTodos.filter(t => t.project_id === p.id).length;
+                const doneCount = allTodos.filter(t => t.project_id === p.id && t.done).length;
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => onSelectProject(p)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                      background: isOverdue ? `${COLORS.danger}10` : COLORS.surfaceActive,
+                      border: `1px solid ${isOverdue ? COLORS.danger + "33" : "transparent"}`,
+                      borderRadius: 8, cursor: "pointer", transition: "all 0.15s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = COLORS.surfaceHover}
+                    onMouseLeave={e => e.currentTarget.style.background = isOverdue ? `${COLORS.danger}10` : COLORS.surfaceActive}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {p.title}
+                        </span>
+                        {isOverdue && <span style={{ fontSize: 10, color: COLORS.danger, fontWeight: 600 }}>OVERDUE</span>}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <StatusBadge status={p.status} small />
+                        {p.assignee && (
+                          <div style={{
+                            width: 18, height: 18, borderRadius: "50%", fontSize: 9, fontWeight: 700,
+                            background: p.assignee === "ludvig" ? COLORS.accent : COLORS.purple,
+                            color: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            {p.assignee === "ludvig" ? "L" : "J"}
+                          </div>
+                        )}
+                        {todoCount > 0 && (
+                          <span style={{ fontSize: 11, color: COLORS.textDim }}>{doneCount}/{todoCount} tasks</span>
+                        )}
+                        {p.endDate && (
+                          <span style={{ fontSize: 11, color: isOverdue ? COLORS.danger : COLORS.textDim, marginLeft: "auto" }}>
+                            Due {formatDate(p.endDate)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Activity */}
+        <div style={cardStyle}>
+          <div style={headerStyle}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.blue }} />
+            Recent Activity
+          </div>
+          {projects.slice(0, 8).map(p => (
+            <div
+              key={p.id}
+              onClick={() => onSelectProject(p)}
+              style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "6px 10px",
+                borderRadius: 6, cursor: "pointer", transition: "background 0.15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = COLORS.surfaceHover}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              <div style={{
+                width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                background: STATUS_CONFIG[p.status]?.color || COLORS.textDim,
+              }} />
+              <span style={{ fontSize: 13, color: COLORS.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {p.title}
+              </span>
+              <StatusBadge status={p.status} small />
+              {p.updatedBy && (
+                <div style={{
+                  width: 18, height: 18, borderRadius: "50%", fontSize: 9, fontWeight: 700,
+                  background: p.updatedBy === "ludvig" ? COLORS.accent : COLORS.purple,
+                  color: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {p.updatedBy === "ludvig" ? "L" : "J"}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* My Completed Tasks */}
+        <div style={cardStyle}>
+          <div style={headerStyle}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.success }} />
+            Completed ({myDoneTodos.length})
+          </div>
+          {myDoneTodos.length === 0 ? (
+            <div style={{ color: COLORS.textDim, fontSize: 13, padding: 12, textAlign: "center" }}>
+              No completed tasks yet
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 320, overflow: "auto" }}>
+              {myDoneTodos.slice(0, 10).map(todo => (
+                <div key={todo.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px" }}>
+                  <span style={{ color: COLORS.accent, fontSize: 14 }}>✓</span>
+                  <span style={{ fontSize: 13, color: COLORS.textDim, textDecoration: "line-through", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {todo.text}
+                  </span>
+                  <span style={{ fontSize: 11, color: COLORS.textDim }}>{getProjectTitle(todo.project_id)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
 // ─── Board View ──────────────────────────────────────────────────────────────
 const BoardView = ({ projects, onSelect, visibleFields, customFields, tagColors }) => {
   const columns = Object.keys(STATUS_CONFIG);
@@ -2754,7 +3032,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { tagColors, updateTagColor: handleUpdateTagColor } = useTagColors();
   const { visibleFields, setVisibleFields, customFieldDefs: customFields, setCustomFieldDefs: setCustomFields } = useAppSettings();
   const { docs, loading: docsLoading, saveDoc, deleteDoc } = useDocs();
-  const [module, setModule] = useState("planner");
+  const [module, setModule] = useState("home");
   const [view, setView] = useState("board");
   const [modal, setModal] = useState(null);
   const [detailProject, setDetailProject] = useState(null);
@@ -2903,6 +3181,8 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           .creatly-list-header { display: none !important; }
           .creatly-list-tags, .creatly-list-date { display: none !important; }
           .creatly-detail-layout { grid-template-columns: 1fr !important; }
+          .creatly-dashboard-grid { grid-template-columns: 1fr !important; }
+          .creatly-dashboard-stats { grid-template-columns: repeat(3, 1fr) !important; }
           main { padding: 12px !important; }
         }
       `}</style>
@@ -2929,7 +3209,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           <img src={LOGO_SRC} alt="creatly" style={{ height: 26, objectFit: "contain" }} />
           {/* Module tabs */}
           <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-            {[{ key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }].map((m) => (
+            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }].map((m) => (
               <button
                 key={m.key}
                 onClick={() => setModule(m.key)}
@@ -3118,6 +3398,15 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
 
       {/* Content */}
       <main style={{ padding: 24, maxWidth: module === "planner" && view === "timeline" && !detailProject ? "none" : 1400, margin: "0 auto" }}>
+        {/* Dashboard */}
+        {module === "home" && (
+          <DashboardView
+            projects={projects}
+            currentUserId={currentUserId}
+            onSelectProject={(p) => { setModule("planner"); setDetailProject(p); }}
+          />
+        )}
+
         {/* Project Detail View */}
         {module === "planner" && detailProject && (
           <ProjectDetailView
