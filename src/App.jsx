@@ -2708,15 +2708,60 @@ const TagManagerModal = ({ tagColors, allTags, onUpdate, onClose }) => {
 const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: "assistant", content: "Hey! I'm your Creatly assistant. I can create projects, add to-dos, write emails & copy based on your brand docs, or summarize what's on your plate. What do you need?" }
+    { role: "assistant", content: "Hey! I'm Kit, your Creatly assistant. I can create projects, add to-dos, write emails & copy based on your brand docs, or just chat. Try talking to me — hit the mic button!" }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
   const messagesEndRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Speech-to-text
+  const toggleListening = () => {
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) { alert("Speech recognition not supported in this browser."); return; }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.onresult = (e) => {
+      const transcript = Array.from(e.results).map(r => r[0].transcript).join("");
+      setInput(transcript);
+      if (e.results[0].isFinal) {
+        setListening(false);
+      }
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+  };
+
+  // Text-to-speech
+  const speak = (text) => {
+    if (!voiceEnabled) return;
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.05;
+    utterance.pitch = 1;
+    // Try to find a good English voice
+    const voices = synth.getVoices();
+    const preferred = voices.find(v => v.name.includes("Google") && v.lang.startsWith("en")) || voices.find(v => v.lang.startsWith("en"));
+    if (preferred) utterance.voice = preferred;
+    synth.speak(utterance);
+  };
 
   const buildSystemPrompt = () => {
     const projectSummary = projects.map(p =>
@@ -2736,7 +2781,7 @@ const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUs
       .map(d => `[${d.folder || "General"}] ${d.title}:\n${d.content.slice(0, 1500)}`)
       .join("\n\n---\n\n");
 
-    return `You are Creatly Assistant, an AI helper inside a project planner app called Creatly. Users are Ludvig and Johannes.
+    return `You are Kit, the AI assistant inside Creatly — a creative bureau that focuses only on AI. You help the team (Ludvig and Johannes) manage projects, write content, and get things done. You're sharp, helpful, and a bit playful.
 
 CURRENT PROJECTS:
 ${projectSummary || "(no projects yet)"}
@@ -2885,6 +2930,7 @@ RULES:
       // Clean the display text (remove action tags)
       const displayText = text.replace(/<actions>[\s\S]*?<\/actions>/g, "").trim();
       setMessages(prev => [...prev, { role: "assistant", content: displayText }]);
+      speak(displayText);
     } catch (e) {
       console.error("Chat error:", e);
       setMessages(prev => [...prev, { role: "assistant", content: "Oops, couldn't reach the AI. Try again." }]);
@@ -2913,7 +2959,7 @@ RULES:
         }}
         onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.boxShadow = "0 6px 28px rgba(122,207,133,0.5)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 20px rgba(122,207,133,0.4)"; }}
-        title="Creatly Assistant"
+        title="Kit"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.49 3.53 1.34 5L2 22l5-1.34C8.47 21.51 10.18 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill={COLORS.bg} stroke={COLORS.bg} strokeWidth="0.5"/>
@@ -2949,8 +2995,8 @@ RULES:
             <span style={{ fontSize: 14 }}>✨</span>
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Creatly Assistant</div>
-            <div style={{ fontSize: 10, color: COLORS.textDim }}>AI-powered project helper</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Kit</div>
+            <div style={{ fontSize: 10, color: COLORS.textDim }}>Creatly AI assistant</div>
           </div>
         </div>
         <button
@@ -2995,16 +3041,44 @@ RULES:
 
       {/* Input */}
       <div style={{ padding: "12px 16px", borderTop: `1px solid ${COLORS.border}` }}>
+        {/* Voice toggle */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 6 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11, color: COLORS.textDim }}>
+            <input
+              type="checkbox"
+              checked={voiceEnabled}
+              onChange={(e) => setVoiceEnabled(e.target.checked)}
+              style={{ accentColor: COLORS.accent, width: 12, height: 12 }}
+            />
+            Kit reads responses
+          </label>
+        </div>
         <div style={{ display: "flex", gap: 8 }}>
+          {/* Mic button */}
+          <button
+            onClick={toggleListening}
+            style={{
+              background: listening ? COLORS.danger : COLORS.surfaceActive,
+              border: `1px solid ${listening ? COLORS.danger : COLORS.border}`,
+              borderRadius: 8, padding: "0 12px", cursor: "pointer",
+              color: listening ? "#fff" : COLORS.textMuted,
+              fontSize: 18, alignSelf: "flex-end", height: 38, flexShrink: 0,
+              transition: "all 0.2s",
+              animation: listening ? "pulse 1.5s infinite" : "none",
+            }}
+            title={listening ? "Stop listening" : "Talk to Kit"}
+          >
+            🎙
+          </button>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
             }}
-            placeholder="Ask me anything... create projects, add tasks, get summaries"
+            placeholder={listening ? "Listening..." : "Talk to Kit or type here..."}
             rows={2}
-            style={{ ...inputStyle, resize: "none", lineHeight: 1.4 }}
+            style={{ ...inputStyle, resize: "none", lineHeight: 1.4, borderColor: listening ? COLORS.accent : COLORS.border }}
             disabled={loading}
           />
           <button
@@ -3172,6 +3246,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: ${COLORS.bg}; }
         ::-webkit-scrollbar-thumb { background: ${COLORS.border}; border-radius: 3px; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         @media (max-width: 768px) {
           .creatly-header { flex-direction: column !important; gap: 10px !important; padding: 10px 14px !important; }
           .creatly-header-search { max-width: 100% !important; }
