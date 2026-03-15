@@ -992,7 +992,7 @@ const ProjectDetailView = ({ project, onSave, onDelete, onClose, customFields = 
   const handleExtractFromTranscript = () => {
     if (!transcriptText.trim()) return;
     setAiLoading(true);
-    fetch("https://api.anthropic.com/v1/messages", {
+    fetch("/api/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1889,7 +1889,7 @@ const DocsView = ({ docs, onSave, onDelete, theme }) => {
   const handleAiWrite = () => {
     if (!aiPrompt.trim()) return;
     setAiLoading(true);
-    fetch("https://api.anthropic.com/v1/messages", {
+    fetch("/api/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
