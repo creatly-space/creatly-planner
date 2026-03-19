@@ -3574,7 +3574,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           <img src={LOGO_SRC} alt="creatly" style={{ height: 26, objectFit: "contain" }} />
           {/* Module tabs */}
           <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }].map((m) => (
+            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }, { key: "clients", label: "Clients" }].map((m) => (
               <button
                 key={m.key}
                 onClick={() => setModule(m.key)}
