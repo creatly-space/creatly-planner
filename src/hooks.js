@@ -15,7 +15,6 @@ const dbToProject = (row) => ({
   notes: row.notes || '',
   customFields: row.custom_fields || {},
   assignee: row.assignee || null,
-    clientId: row.client_id || null,
   created: row.created_at,
   updatedBy: row.updated_by || null,
 })
@@ -33,7 +32,6 @@ const projectToDb = (p, userId) => ({
   notes: p.notes,
   custom_fields: p.customFields || {},
   assignee: p.assignee || null,
-    client_id: p.clientId || null,
   updated_at: new Date().toISOString(),
   updated_by: userId || null,
 })
@@ -337,85 +335,4 @@ export function useTodos(projectId) {
   }, [projectId, todos])
 
   return { todos, loading, addTodo, updateTodo, deleteTodo, addManyTodos }
-}
-
-
-// ─── Clients Hook ────────────────────────────────────────────────────────────
-export function useClients() {
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchClients = async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('name');
-      if (error) console.error('Fetch clients error:', error);
-      else setClients(data || []);
-      setLoading(false);
-    };
-    fetchClients();
-
-    const sub = supabase
-      .channel('clients-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
-        fetchClients();
-      })
-      .subscribe();
-
-    return () => supabase.removeChannel(sub);
-  }, []);
-
-  const saveClient = useCallback(async (client) => {
-    const row = {
-      id: client.id,
-      name: client.name,
-      contact_name: client.contactName || '',
-      contact_email: client.contactEmail || '',
-      industry: client.industry || '',
-      brand_context: client.brandContext || {},
-      notes: client.notes || '',
-      updated_at: new Date().toISOString(),
-    };
-    const { data, error } = await supabase
-      .from('clients')
-      .upsert(row)
-      .select()
-      .single();
-    if (error) console.error('Save client error:', error);
-    else {
-      setClients(prev => {
-        const idx = prev.findIndex(c => c.id === data.id);
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = data;
-          return next;
-        }
-        return [...prev, data];
-      });
-    }
-    return data;
-  }, []);
-
-  const deleteClient = useCallback(async (id) => {
-    const { error } = await supabase.from('clients').delete().eq('id', id);
-    if (error) console.error('Delete client error:', error);
-    else setClients(prev => prev.filter(c => c.id !== id));
-  }, []);
-
-  const clientMap = clients.reduce((acc, c) => {
-    acc[c.id] = {
-      id: c.id,
-      name: c.name,
-      contactName: c.contact_name,
-      contactEmail: c.contact_email,
-      industry: c.industry,
-      brandContext: c.brand_context || {},
-      notes: c.notes,
-    };
-    return acc;
-  }, {});
-
-  return { clients: Object.values(clientMap), clientMap, loading, saveClient, deleteClient }
 }
