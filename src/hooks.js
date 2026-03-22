@@ -15,6 +15,7 @@ const dbToProject = (row) => ({
   notes: row.notes || '',
   customFields: row.custom_fields || {},
   assignee: row.assignee || null,
+  clientId: row.client_id || null,
   created: row.created_at,
   updatedBy: row.updated_by || null,
 })
@@ -32,6 +33,7 @@ const projectToDb = (p, userId) => ({
   notes: p.notes,
   custom_fields: p.customFields || {},
   assignee: p.assignee || null,
+  client_id: p.clientId || null,
   updated_at: new Date().toISOString(),
   updated_by: userId || null,
 })
@@ -335,4 +337,60 @@ export function useTodos(projectId) {
   }, [projectId, todos])
 
   return { todos, loading, addTodo, updateTodo, deleteTodo, addManyTodos }
+}
+
+// ─── Clients Hook ─────────────────────────────────────────────────────────────
+export function useClients() {
+  const [clients, setClients] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (!error && data) setClients(data)
+      setLoading(false)
+    }
+    fetch()
+  }, [])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('clients-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setClients(prev => {
+            if (prev.find(c => c.id === payload.new.id)) return prev
+            return [payload.new, ...prev]
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setClients(prev => prev.map(c => c.id === payload.new.id ? payload.new : c))
+        } else if (payload.eventType === 'DELETE') {
+          setClients(prev => prev.filter(c => c.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [])
+
+  const saveClient = useCallback(async (client) => {
+    const row = { ...client, updated_at: new Date().toISOString() }
+    const { error } = await supabase.from('clients').upsert(row)
+    if (error) console.error('Save client error:', error)
+    setClients(prev => {
+      const idx = prev.findIndex(c => c.id === client.id)
+      if (idx >= 0) { const next = [...prev]; next[idx] = row; return next }
+      return [row, ...prev]
+    })
+  }, [])
+
+  const deleteClient = useCallback(async (id) => {
+    const { error } = await supabase.from('clients').delete().eq('id', id)
+    if (error) console.error('Delete client error:', error)
+    setClients(prev => prev.filter(c => c.id !== id))
+  }, [])
+
+  return { clients, loading, saveClient, deleteClient }
 }

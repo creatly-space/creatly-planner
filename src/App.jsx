@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useProjects, useTagColors, useAppSettings, useDocs, useTodos } from "./hooks";
+import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients } from "./hooks";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -286,7 +286,7 @@ const PriorityBadge = ({ priority }) => {
 };
 
 // ─── Project Card ────────────────────────────────────────────────────────────
-const ProjectCard = ({ project, onClick, compact, visibleFields = {}, customFields = [], tagColors = {} }) => {
+const ProjectCard = ({ project, onClick, compact, visibleFields = {}, customFields = [], tagColors = {}, clientMap = {} }) => {
   const [hovered, setHovered] = useState(false);
   const vf = { ...DEFAULT_VISIBLE_FIELDS, ...visibleFields };
   const progress = project.endDate && project.dateMode !== "single"
@@ -368,6 +368,19 @@ const ProjectCard = ({ project, onClick, compact, visibleFields = {}, customFiel
           </div>
           <span style={{ fontSize: 11, color: COLORS.textMuted }}>
             {project.assignee === "ludvig" ? "Ludvig" : "Johannes"}
+          </span>
+        </div>
+      )}
+
+      {/* Client badge */}
+      {project.clientId && clientMap[project.clientId] && (
+        <div style={{ marginTop: 8 }}>
+          <span style={{
+            fontSize: 10, color: COLORS.blue, background: `${COLORS.blue}15`,
+            padding: "2px 8px", borderRadius: 4, border: `1px solid ${COLORS.blue}30`,
+            fontWeight: 500, letterSpacing: "0.03em",
+          }}>
+            {clientMap[project.clientId].name}
           </span>
         </div>
       )}
@@ -566,7 +579,7 @@ const TagDropdownInput = ({ value, onChange, onAdd, allTags, currentTags, tagCol
 };
 
 // ─── Project Detail / Editor Modal ───────────────────────────────────────────
-const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], tagColors = {}, allTags = [], onUpdateTagColor }) => {
+const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], tagColors = {}, allTags = [], onUpdateTagColor, clients = [] }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [form, setForm] = useState(
     project || {
@@ -581,6 +594,7 @@ const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], t
       tags: [],
       notes: "",
       customFields: {},
+      clientId: null,
       created: new Date().toISOString().split("T")[0],
     }
   );
@@ -728,6 +742,17 @@ const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], t
               </select>
             </div>
           </div>
+
+          {/* Client / Brand */}
+          {clients.length > 0 && (
+            <div>
+              <label style={labelStyle}>Client / Brand</label>
+              <select value={form.clientId || ""} onChange={(e) => update("clientId", e.target.value || null)} style={selectStyle}>
+                <option value="">No client</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
 
           {/* Date Mode Toggle + Dates */}
           <div>
@@ -947,7 +972,7 @@ const ProjectModal = ({ project, onSave, onDelete, onClose, customFields = [], t
 };
 
 // ─── Project Detail View ────────────────────────────────────────────────────
-const ProjectDetailView = ({ project, onSave, onDelete, onClose, customFields = [], tagColors = {}, allTags = [], onUpdateTagColor, currentUserId }) => {
+const ProjectDetailView = ({ project, onSave, onDelete, onClose, customFields = [], tagColors = {}, allTags = [], onUpdateTagColor, currentUserId, clients = [] }) => {
   const { todos, loading: todosLoading, addTodo, updateTodo, deleteTodo, addManyTodos } = useTodos(project?.id);
   const [form, setForm] = useState(project);
   const [tagInput, setTagInput] = useState("");
@@ -1118,6 +1143,17 @@ ${transcriptText}`
               </select>
             </div>
           </div>
+
+          {/* Client / Brand */}
+          {clients.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Client / Brand</label>
+              <select value={form.clientId || ""} onChange={(e) => update("clientId", e.target.value || null)} style={selectStyle}>
+                <option value="">No client</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
 
           {/* Date Mode + Dates */}
           <div style={{ marginBottom: 16 }}>
@@ -1657,7 +1693,7 @@ const DashboardView = ({ projects, currentUserId, onSelectProject }) => {
 };
 
 // ─── Board View ──────────────────────────────────────────────────────────────
-const BoardView = ({ projects, onSelect, visibleFields, customFields, tagColors }) => {
+const BoardView = ({ projects, onSelect, visibleFields, customFields, tagColors, clientMap = {} }) => {
   const columns = Object.keys(STATUS_CONFIG);
 
   return (
@@ -2705,7 +2741,7 @@ const TagManagerModal = ({ tagColors, allTags, onUpdate, onClose }) => {
 };
 
 // ─── AI Chat Assistant ──────────────────────────────────────────────────────
-const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
+const AiChatAssistant = ({ projects, docs, clients = [], clientMap = {}, saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: "assistant", content: "Hey! I'm Kit, your Creatly assistant. I can create projects, add to-dos, write emails & copy based on your brand docs, or just chat. Try talking to me — hit the mic button!" }
@@ -2774,9 +2810,21 @@ const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUs
   };
 
   const buildSystemPrompt = () => {
-    const projectSummary = projects.map(p =>
-      `- "${p.title}" (id:${p.id}, status:${p.status}, priority:${p.priority}, assignee:${p.assignee || "unassigned"}, tags:[${p.tags?.join(",")}])`
-    ).join("\n");
+    const projectSummary = projects.map(p => {
+      const clientName = p.clientId && clientMap[p.clientId] ? ` client:${clientMap[p.clientId].name}` : "";
+      return `- "${p.title}" (id:${p.id}, status:${p.status}, priority:${p.priority}, assignee:${p.assignee || "unassigned"}${clientName}, tags:[${p.tags?.join(",")}])`;
+    }).join("\n");
+
+    // Build client brand context
+    const clientContext = clients.length > 0 ? clients.map(c => {
+      const bc = c.brand_context || {};
+      const parts = [];
+      if (bc.tone_of_voice) parts.push(`Tone: ${bc.tone_of_voice}`);
+      if (bc.guidelines) parts.push(`Guidelines: ${bc.guidelines}`);
+      if (bc.preferences) parts.push(`Preferences: ${bc.preferences}`);
+      if (bc.learnings) parts.push(`Learnings: ${bc.learnings}`);
+      return `CLIENT: ${c.name}${c.industry ? ` (${c.industry})` : ""}\n${parts.join("\n") || "(no brand context yet)"}`;
+    }).join("\n\n") : "";
 
     // Build knowledge base from docs — prioritize Brand Guidelines, Templates, SOPs
     const priorityFolders = ["Brand Guidelines", "Templates", "SOPs", "Strategy"];
@@ -2787,7 +2835,7 @@ const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUs
     });
     const docsContext = sortedDocs
       .filter(d => d.content && d.content.trim())
-      .slice(0, 10) // limit to 10 docs to manage token usage
+      .slice(0, 10)
       .map(d => `[${d.folder || "General"}] ${d.title}:\n${d.content.slice(0, 1500)}`)
       .join("\n\n---\n\n");
 
@@ -2796,7 +2844,10 @@ const AiChatAssistant = ({ projects, docs, saveProject, deleteProject, currentUs
 CURRENT PROJECTS:
 ${projectSummary || "(no projects yet)"}
 
-KNOWLEDGE BASE (from Creatly Docs — use this for brand context, tone, templates, and best practices when creating content):
+${clientContext ? `CLIENT BRAND CONTEXT (use this when creating content for or about these clients — apply their tone, guidelines, and preferences):
+${clientContext}
+
+` : ""}KNOWLEDGE BASE (from Creatly Docs — use this for brand context, tone, templates, and best practices when creating content):
 ${docsContext || "(no docs yet — ask the user to add brand guidelines, templates, and SOPs to Creatly Docs)"}
 
 You can perform actions by including a JSON block in your response wrapped in <actions> tags. Available actions:
@@ -2818,13 +2869,13 @@ RULES:
 - For new projects, use sensible defaults: status=backlog, priority=medium, dateMode=range, startDate=today, endDate=2 weeks from now.
 - Today's date is ${new Date().toISOString().split("T")[0]}.
 - When a user pastes a meeting transcript, create a project AND extract to-dos from it.
-- When asked to write content (emails, copy, briefs, etc.), ALWAYS check the Knowledge Base first for tone of voice, brand guidelines, templates, and best practices. Apply them to everything you write.
-- When creating projects that involve content deliverables, put the actual written content (email copy, ad copy, briefs, etc.) in the project description AND break down the execution steps as to-dos.
+- When asked to write content for a specific client, ALWAYS apply their brand context (tone, guidelines, preferences). If they have no brand context yet, remind the user to fill it in on the Clients page.
+- When asked to write content (emails, copy, briefs, etc.), check both Client Brand Context AND Knowledge Base for tone, guidelines, and templates.
+- When creating projects that involve content deliverables, put the actual written content in the project description AND break down execution steps as to-dos.
 - When asked about what's going on, summarize projects grouped by status.
 - Keep responses short and punchy. No fluff.
 - If you need to reference a project, use its title — the user doesn't know UUIDs.
-- You can include multiple actions in one response.
-- If the user asks you to create content but there are no brand docs in the Knowledge Base yet, remind them to add tone of voice and brand guidelines to Creatly Docs first for best results.`;
+- You can include multiple actions in one response.`;
   };
 
   const executeActions = async (actionsText) => {
@@ -3119,16 +3170,214 @@ RULES:
   );
 };
 
+// ─── Client Profile Modal ────────────────────────────────────────────────────
+const ClientProfileModal = ({ client, onSave, onDelete, onClose }) => {
+  const isNew = !client;
+  const [form, setForm] = useState(client || {
+    id: uid(), name: "", contact_name: "", contact_email: "", industry: "",
+    brand_context: { tone_of_voice: "", guidelines: "", preferences: "", learnings: "" },
+    notes: "",
+  });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const update = (key, val) => setForm(p => ({ ...p, [key]: val }));
+  const updateBrand = (key, val) => setForm(p => ({ ...p, brand_context: { ...p.brand_context, [key]: val } }));
+
+  const handleSave = () => {
+    if (!form.name.trim()) return;
+    onSave({ ...form, created_at: form.created_at || new Date().toISOString() });
+    onClose();
+  };
+
+  const inputStyle = { background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 12px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" };
+  const labelStyle = { fontSize: 11, color: COLORS.textMuted, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6, display: "block" };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 12, width: "100%", maxWidth: 620, maxHeight: "90vh", overflow: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${COLORS.border}` }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: COLORS.text }}>{isNew ? "New Client" : "Edit Client"}</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.textMuted, fontSize: 18 }}>×</button>
+        </div>
+
+        <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Basic info */}
+          <div>
+            <label style={labelStyle}>Client / Brand Name *</label>
+            <input value={form.name} onChange={e => update("name", e.target.value)} placeholder="e.g. Hatstore, Nike..." style={{ ...inputStyle, fontSize: 15, fontWeight: 500 }} autoFocus />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Contact Name</label>
+              <input value={form.contact_name} onChange={e => update("contact_name", e.target.value)} placeholder="John Smith" style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Contact Email</label>
+              <input value={form.contact_email} onChange={e => update("contact_email", e.target.value)} placeholder="john@brand.com" style={inputStyle} />
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Industry</label>
+            <input value={form.industry} onChange={e => update("industry", e.target.value)} placeholder="e-commerce, SaaS, fashion..." style={inputStyle} />
+          </div>
+
+          {/* Brand Context */}
+          <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent, marginBottom: 14, letterSpacing: "0.04em", textTransform: "uppercase" }}>Brand Context for AI</div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Tone of Voice</label>
+                <textarea value={form.brand_context?.tone_of_voice || ""} onChange={e => updateBrand("tone_of_voice", e.target.value)} placeholder="How should this brand communicate? e.g. Bold, playful, direct. Avoid corporate jargon..." rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }} />
+              </div>
+              <div>
+                <label style={labelStyle}>Brand Guidelines</label>
+                <textarea value={form.brand_context?.guidelines || ""} onChange={e => updateBrand("guidelines", e.target.value)} placeholder="Key brand rules, visual identity notes, messaging pillars..." rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }} />
+              </div>
+              <div>
+                <label style={labelStyle}>Content Preferences</label>
+                <textarea value={form.brand_context?.preferences || ""} onChange={e => updateBrand("preferences", e.target.value)} placeholder="Preferred content formats, platforms, audience info, what works well..." rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }} />
+              </div>
+              <div>
+                <label style={labelStyle}>Learnings & Notes</label>
+                <textarea value={form.brand_context?.learnings || ""} onChange={e => updateBrand("learnings", e.target.value)} placeholder="What has worked, what hasn't, things to remember..." rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label style={labelStyle}>Internal Notes</label>
+            <textarea value={form.notes} onChange={e => update("notes", e.target.value)} placeholder="Any other internal notes..." rows={2} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }} />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "12px 20px", borderTop: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            {!isNew && !confirmDelete && (
+              <button onClick={() => setConfirmDelete(true)} style={{ background: "none", border: "none", color: COLORS.danger, fontSize: 13, cursor: "pointer", padding: 0 }}>
+                Delete client
+              </button>
+            )}
+            {confirmDelete && (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: COLORS.textMuted }}>Sure?</span>
+                <button onClick={() => { onDelete(form.id); onClose(); }} style={{ background: COLORS.danger, border: "none", borderRadius: 6, padding: "6px 12px", color: "#fff", fontSize: 12, cursor: "pointer" }}>Delete</button>
+                <button onClick={() => setConfirmDelete(false)} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 12px", color: COLORS.textMuted, fontSize: 12, cursor: "pointer" }}>Cancel</button>
+              </div>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={onClose} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 18px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+            <button onClick={handleSave} style={{ background: COLORS.accent, border: "none", borderRadius: 6, padding: "8px 22px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              {isNew ? "Create Client" : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Clients View ─────────────────────────────────────────────────────────────
+const ClientsView = ({ clients, projects, onEdit, onSave, onDelete, onNew }) => {
+  const projectCountByClient = useMemo(() => {
+    const counts = {};
+    projects.forEach(p => { if (p.clientId) counts[p.clientId] = (counts[p.clientId] || 0) + 1; });
+    return counts;
+  }, [projects]);
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.text }}>Clients</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: COLORS.textMuted }}>{clients.length} client{clients.length !== 1 ? "s" : ""}</p>
+        </div>
+        <button
+          onClick={onNew}
+          style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+        >
+          + New Client
+        </button>
+      </div>
+
+      {clients.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "80px 20px", color: COLORS.textDim }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>🏢</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.textMuted, marginBottom: 8 }}>No clients yet</div>
+          <div style={{ fontSize: 13, marginBottom: 24 }}>Add clients to link projects and inject brand context into Kit.</div>
+          <button onClick={onNew} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "10px 24px", color: COLORS.bg, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+            Add your first client
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          {clients.map(client => {
+            const projectCount = projectCountByClient[client.id] || 0;
+            const hasContext = client.brand_context && Object.values(client.brand_context).some(v => v?.trim());
+            return (
+              <div
+                key={client.id}
+                onClick={() => onEdit(client)}
+                style={{
+                  background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 10,
+                  padding: 20, cursor: "pointer", transition: "all 0.2s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.borderLight; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.3)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 3 }}>{client.name}</div>
+                    {client.industry && <div style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: "0.04em" }}>{client.industry}</div>}
+                  </div>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: `${COLORS.blue}20`, border: `1px solid ${COLORS.blue}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+                    {client.name.charAt(0).toUpperCase()}
+                  </div>
+                </div>
+
+                {client.contact_name && (
+                  <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 4 }}>
+                    {client.contact_name}{client.contact_email && ` · ${client.contact_email}`}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, paddingTop: 12, borderTop: `1px solid ${COLORS.border}` }}>
+                  <span style={{ fontSize: 11, color: COLORS.textMuted }}>
+                    {projectCount} project{projectCount !== 1 ? "s" : ""}
+                  </span>
+                  {hasContext && (
+                    <span style={{ fontSize: 10, color: COLORS.accent, background: `${COLORS.accent}15`, padding: "2px 7px", borderRadius: 4, fontWeight: 500 }}>
+                      AI context ✓
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main App ────────────────────────────────────────────────────────────────
 function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { projects, loading, saveProject, deleteProject } = useProjects();
   const { tagColors, updateTagColor: handleUpdateTagColor } = useTagColors();
   const { visibleFields, setVisibleFields, customFieldDefs: customFields, setCustomFieldDefs: setCustomFields } = useAppSettings();
   const { docs, loading: docsLoading, saveDoc, deleteDoc } = useDocs();
+  const { clients, saveClient, deleteClient } = useClients();
   const [module, setModule] = useState("home");
   const [view, setView] = useState("board");
   const [modal, setModal] = useState(null);
   const [detailProject, setDetailProject] = useState(null);
+  const [editingClient, setEditingClient] = useState(null);
+  const [showNewClient, setShowNewClient] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [showFieldSettings, setShowFieldSettings] = useState(false);
@@ -3137,6 +3386,8 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem("creatly_theme") || "dark"; } catch(e) { return "dark"; }
   });
+
+  const clientMap = useMemo(() => Object.fromEntries(clients.map(c => [c.id, c])), [clients]);
 
   // Apply theme
   COLORS = theme === "dark" ? DARK_THEME : LIGHT_THEME;
@@ -3303,7 +3554,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           <img src={LOGO_SRC} alt="creatly" style={{ height: 26, objectFit: "contain" }} />
           {/* Module tabs */}
           <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }].map((m) => (
+            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }, { key: "clients", label: "Clients" }].map((m) => (
               <button
                 key={m.key}
                 onClick={() => setModule(m.key)}
@@ -3513,13 +3764,14 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
             allTags={allTags}
             onUpdateTagColor={handleUpdateTagColor}
             currentUserId={currentUserId}
+            clients={clients}
           />
         )}
 
         {/* Planner views */}
         {module === "planner" && !detailProject && (
           <>
-            {view === "board" && <BoardView projects={filtered} onSelect={handleCardClick} visibleFields={visibleFields} customFields={customFields} tagColors={tagColors} />}
+            {view === "board" && <BoardView projects={filtered} onSelect={handleCardClick} visibleFields={visibleFields} customFields={customFields} tagColors={tagColors} clientMap={clientMap} />}
             {view === "timeline" && <TimelineView projects={filtered} onSelect={handleCardClick} />}
             {view === "calendar" && <CalendarView projects={filtered} onSelect={handleCardClick} />}
             {view === "list" && <ListView projects={filtered} onSelect={handleCardClick} />}
@@ -3550,6 +3802,18 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         {module === "docs" && (
           <DocsView docs={docs} onSave={(doc) => saveDoc(doc, currentUserId)} onDelete={deleteDoc} theme={theme} />
         )}
+
+        {/* Clients view */}
+        {module === "clients" && (
+          <ClientsView
+            clients={clients}
+            projects={projects}
+            onEdit={(client) => setEditingClient(client)}
+            onSave={saveClient}
+            onDelete={deleteClient}
+            onNew={() => setShowNewClient(true)}
+          />
+        )}
       </main>
 
       {/* Project Modal (new projects only) */}
@@ -3563,6 +3827,27 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           tagColors={tagColors}
           allTags={allTags}
           onUpdateTagColor={handleUpdateTagColor}
+          clients={clients}
+        />
+      )}
+
+      {/* Client Profile Modal — edit existing */}
+      {editingClient && (
+        <ClientProfileModal
+          client={editingClient}
+          onSave={saveClient}
+          onDelete={deleteClient}
+          onClose={() => setEditingClient(null)}
+        />
+      )}
+
+      {/* Client Profile Modal — new */}
+      {showNewClient && (
+        <ClientProfileModal
+          client={null}
+          onSave={saveClient}
+          onDelete={deleteClient}
+          onClose={() => setShowNewClient(false)}
         />
       )}
 
@@ -3592,6 +3877,8 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
       <AiChatAssistant
         projects={projects}
         docs={docs}
+        clients={clients}
+        clientMap={clientMap}
         saveProject={saveProject}
         deleteProject={deleteProject}
         currentUserId={currentUserId}
