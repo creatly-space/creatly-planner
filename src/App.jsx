@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications } from "./hooks";
+import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications, useServices } from "./hooks";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -2741,7 +2741,7 @@ const TagManagerModal = ({ tagColors, allTags, onUpdate, onClose }) => {
 };
 
 // ─── AI Chat Assistant ──────────────────────────────────────────────────────
-const AiChatAssistant = ({ projects, docs, saveDoc, clients = [], clientMap = {}, saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
+const AiChatAssistant = ({ projects, docs, saveDoc, clients = [], clientMap = {}, services = [], saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: "assistant", content: "Hey! I'm Kit, your Creatly assistant. I can create projects, add to-dos, write emails & copy based on your brand docs, or just chat. Try talking to me — hit the mic button!" }
@@ -2839,7 +2839,12 @@ const AiChatAssistant = ({ projects, docs, saveDoc, clients = [], clientMap = {}
       .map(d => `[${d.folder || "General"}] ${d.title} (id:${d.id}):\n${d.content.slice(0, 1500)}`)
       .join("\n\n---\n\n");
 
-    return `You are Kit, the AI assistant inside Creatly — a creative bureau that focuses only on AI. You help the team (Ludvig and Johannes) manage projects, write content, and get things done. You're sharp, helpful, and a bit playful.
+    // Build services/rate card context
+    const servicesContext = services.length > 0 ? services.map(s =>
+      `- ${s.name} (${s.category}): ${s.price_sek.toLocaleString("sv-SE")} SEK, ~${s.estimated_days} day${s.estimated_days !== 1 ? "s" : ""}${s.description ? ` — ${s.description}` : ""}`
+    ).join("\n") : "";
+
+        return `You are Kit, the AI assistant inside Creatly — a creative bureau that focuses only on AI. You help the team (Ludvig and Johannes) manage projects, write content, and get things done. You're sharp, helpful, and a bit playful.
 
 You have access to web search. Use it proactively when you need current information — competitor research, market context, brand analysis, pricing, recent news, etc. Don't ask permission to search, just do it.
 
@@ -2868,7 +2873,7 @@ Always ground the brief in real findings from your search. Be specific — menti
 CURRENT PROJECTS:
 ${projectSummary || "(no projects yet)"}
 
-${clientContext ? `CLIENT BRAND CONTEXT (use this when creating content for or about these clients — apply their tone, guidelines, and preferences):
+${servicesContext ? `CREATLY SERVICES & RATE CARD (use this when generating creative briefs or discussing pricing):\n${servicesContext}\n\n` : ""}${clientContext ? `CLIENT BRAND CONTEXT (use this when creating content for or about these clients — apply their tone, guidelines, and preferences):
 ${clientContext}
 
 ` : ""}KNOWLEDGE BASE (from Creatly Docs — use this for brand context, tone, templates, and best practices when creating content):
@@ -3366,6 +3371,390 @@ Return only the bullet points, starting each with •`
   );
 };
 
+// ─── Service Modal ────────────────────────────────────────────────────────────
+const ServiceModal = ({ service, onSave, onDelete, onClose }) => {
+  const isNew = !service;
+  const [form, setForm] = useState(service || {
+    id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+    name: "", category: "Creative", description: "", price_sek: 0, estimated_days: 1, sort_order: 0, active: true,
+  });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const update = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const handleSave = () => { if (!form.name.trim()) return; onSave(form); onClose(); };
+  const CATEGORIES = ["Creative", "Strategy", "Tech", "Distribution", "Consulting"];
+  const inputStyle = { background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 12px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
+  const labelStyle = { fontSize: 11, color: COLORS.textMuted, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6, display: "block" };
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 12, width: "100%", maxWidth: 520, boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${COLORS.border}` }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: COLORS.text }}>{isNew ? "New Service" : "Edit Service"}</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.textMuted, fontSize: 18 }}>×</button>
+        </div>
+        <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+          <div><label style={labelStyle}>Service Name *</label><input value={form.name} onChange={e => update("name", e.target.value)} placeholder="e.g. Meta Ad Set (3 creatives)" style={{ ...inputStyle, fontSize: 15, fontWeight: 500 }} autoFocus /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div><label style={labelStyle}>Category</label>
+              <select value={form.category} onChange={e => update("category", e.target.value)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div><label style={labelStyle}>Sort Order</label><input type="number" value={form.sort_order} onChange={e => update("sort_order", parseInt(e.target.value) || 0)} style={inputStyle} /></div>
+          </div>
+          <div><label style={labelStyle}>Description</label><textarea value={form.description || ""} onChange={e => update("description", e.target.value)} placeholder="What's included..." rows={2} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div><label style={labelStyle}>Price (SEK)</label><input type="number" value={form.price_sek} onChange={e => update("price_sek", parseInt(e.target.value) || 0)} style={inputStyle} /></div>
+            <div><label style={labelStyle}>Estimated Days</label><input type="number" value={form.estimated_days} onChange={e => update("estimated_days", parseInt(e.target.value) || 1)} style={inputStyle} /></div>
+          </div>
+        </div>
+        <div style={{ padding: "12px 20px", borderTop: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            {!isNew && !confirmDelete && <button onClick={() => setConfirmDelete(true)} style={{ background: "none", border: "none", color: COLORS.danger, fontSize: 13, cursor: "pointer", padding: 0 }}>Delete service</button>}
+            {confirmDelete && <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: COLORS.textMuted }}>Sure?</span>
+              <button onClick={() => { onDelete(form.id); onClose(); }} style={{ background: COLORS.danger, border: "none", borderRadius: 6, padding: "6px 12px", color: "#fff", fontSize: 12, cursor: "pointer" }}>Delete</button>
+              <button onClick={() => setConfirmDelete(false)} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "6px 12px", color: COLORS.textMuted, fontSize: 12, cursor: "pointer" }}>Cancel</button>
+            </div>}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={onClose} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 18px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+            <button onClick={handleSave} style={{ background: COLORS.accent, border: "none", borderRadius: 6, padding: "8px 22px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{isNew ? "Add Service" : "Save"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Creative Brief Modal ─────────────────────────────────────────────────────
+const CreativeBriefModal = ({ clients, services, currentUserId, saveDoc, showToast, onClose }) => {
+  const [step, setStep] = useState(1); // 1=setup, 2=generating, 3=preview
+  const [clientId, setClientId] = useState("");
+  const [selectedServices, setSelectedServices] = useState([]);
+  const [projectGoal, setProjectGoal] = useState("");
+  const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
+  const [notes, setNotes] = useState("");
+  const [brief, setBrief] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const client = clients.find(c => c.id === clientId);
+  const pickedServices = services.filter(s => selectedServices.includes(s.id));
+  const totalPrice = pickedServices.reduce((sum, s) => sum + s.price_sek, 0);
+  const totalDays = pickedServices.length > 0 ? Math.max(...pickedServices.map(s => s.estimated_days)) + Math.floor(pickedServices.reduce((sum, s) => sum + s.estimated_days, 0) / 3) : 0;
+  const endDate = startDate ? new Date(new Date(startDate).getTime() + totalDays * 86400000).toISOString().split("T")[0] : "";
+
+  const CATEGORIES = [...new Set(services.map(s => s.category))];
+
+  const toggleService = (id) => setSelectedServices(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const formatSEK = (n) => n.toLocaleString("sv-SE") + " SEK";
+
+  const generateBrief = async () => {
+    setLoading(true);
+    setStep(2);
+    try {
+      const bc = client?.brand_context || {};
+      const res = await fetch("/api/claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          messages: [{
+            role: "user",
+            content: `Write a professional creative brief for a client. Use markdown formatting.
+
+CLIENT: ${client?.name || "TBD"}${client?.industry ? ` (${client.industry})` : ""}
+GOAL: ${projectGoal}
+TONE OF VOICE: ${bc.tone_of_voice || "not specified"}
+BRAND GUIDELINES: ${bc.guidelines || "not specified"}
+TARGET AUDIENCE: ${bc.preferences || "not specified"}
+ADDITIONAL NOTES: ${notes || "none"}
+
+DELIVERABLES & PRICING:
+${pickedServices.map(s => `- ${s.name}: ${formatSEK(s.price_sek)} (est. ${s.estimated_days} days)\n  ${s.description || ""}`).join("\n")}
+
+TOTAL INVESTMENT: ${formatSEK(totalPrice)}
+TIMELINE: ${startDate} → ${endDate} (${totalDays} working days)
+
+Write a compelling creative brief with these sections:
+# Creative Brief — ${client?.name || "Client"}: [short campaign/project title]
+
+## Overview
+[2-3 sentences on what this project is and why it matters]
+
+## Objective
+[Clear, measurable goal]
+
+## Target Audience
+[Who we're reaching and what matters to them]
+
+## Deliverables
+[List each deliverable with a one-line description]
+
+## Creative Direction
+[Tone, style, key messages — grounded in the brand context]
+
+## Timeline
+[Key milestones from ${startDate} to ${endDate}]
+
+## Investment
+[Clean pricing table with total]
+
+## Next Steps
+[What happens after signing off]
+
+Keep it sharp, professional, and client-ready. No fluff.`
+          }],
+        }),
+      });
+      const data = await res.json();
+      const text = data.content?.filter(c => c.type === "text").map(c => c.text).join("") || "";
+      setBrief(text);
+      setStep(3);
+    } catch (e) {
+      console.error("Brief gen error:", e);
+      showToast("Failed to generate brief");
+      setStep(1);
+    }
+    setLoading(false);
+  };
+
+  const saveToDocs = async () => {
+    const title = `Creative Brief — ${client?.name || "Client"} — ${new Date().toLocaleDateString("sv-SE")}`;
+    await saveDoc({
+      id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+      title,
+      content: brief,
+      folder: "Templates",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, currentUserId);
+    showToast(`Brief saved to Docs 📄`);
+    onClose();
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(brief);
+    showToast("Brief copied to clipboard");
+  };
+
+  const inputStyle = { background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "9px 12px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, width: "100%", maxWidth: step === 3 ? 760 : 620, maxHeight: "92vh", overflow: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.6)", display: "flex", flexDirection: "column" }}>
+        {/* Header */}
+        <div style={{ padding: "18px 24px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>
+              {step === 1 ? "Step 1 of 2 — Configure" : step === 2 ? "Generating..." : "Step 2 of 2 — Review & Save"}
+            </div>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: COLORS.text }}>Creative Brief Generator</h2>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.textMuted, fontSize: 20 }}>×</button>
+        </div>
+
+        {/* Step 1 — Configure */}
+        {step === 1 && (
+          <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20, overflow: "auto" }}>
+            {/* Client + Goal */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Client</label>
+                <select value={clientId} onChange={e => setClientId(e.target.value)} style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}>
+                  <option value="">No client / Internal</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Start Date</label>
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={inputStyle} />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Project Goal *</label>
+              <textarea value={projectGoal} onChange={e => setProjectGoal(e.target.value)} placeholder="What are we trying to achieve? e.g. Launch a Meta ads campaign to drive sign-ups for our new AI product..." rows={3} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} autoFocus />
+            </div>
+
+            {/* Services */}
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 12 }}>Deliverables</label>
+              {CATEGORIES.map(cat => (
+                <div key={cat} style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: COLORS.textDim, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>{cat}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {services.filter(s => s.category === cat).map(s => {
+                      const picked = selectedServices.includes(s.id);
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => toggleService(s.id)}
+                          style={{
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                            padding: "10px 14px", borderRadius: 8, cursor: "pointer",
+                            border: `1px solid ${picked ? COLORS.accent : COLORS.border}`,
+                            background: picked ? `${COLORS.accent}10` : COLORS.surfaceActive,
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${picked ? COLORS.accent : COLORS.borderLight}`, background: picked ? COLORS.accent : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
+                              {picked && <span style={{ color: COLORS.bg, fontSize: 10, fontWeight: 700 }}>✓</span>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.text }}>{s.name}</div>
+                              {s.description && <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 2 }}>{s.description}</div>}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: picked ? COLORS.accent : COLORS.textMuted }}>{s.price_sek.toLocaleString("sv-SE")} SEK</div>
+                            <div style={{ fontSize: 11, color: COLORS.textDim }}>{s.estimated_days}d</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Additional Notes</label>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Anything else Kit should know for this brief..." rows={2} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
+            </div>
+          </div>
+        )}
+
+        {/* Step 2 — Generating */}
+        {step === 2 && (
+          <div style={{ padding: 60, textAlign: "center", flex: 1 }}>
+            <div style={{ fontSize: 32, marginBottom: 16 }}>✍️</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, marginBottom: 8 }}>Kit is writing your brief...</div>
+            <div style={{ fontSize: 13, color: COLORS.textMuted }}>Applying brand context and structuring deliverables</div>
+          </div>
+        )}
+
+        {/* Step 3 — Preview */}
+        {step === 3 && (
+          <div style={{ padding: 24, overflow: "auto", flex: 1 }}>
+            <pre style={{ margin: 0, fontFamily: "inherit", fontSize: 13, color: COLORS.text, lineHeight: 1.8, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{brief}</pre>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div style={{ padding: "14px 24px", borderTop: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+          {/* Pricing summary */}
+          {step !== 2 && selectedServices.length > 0 && (
+            <div style={{ fontSize: 13 }}>
+              <span style={{ color: COLORS.textMuted }}>{pickedServices.length} service{pickedServices.length !== 1 ? "s" : ""} · </span>
+              <span style={{ fontWeight: 700, color: COLORS.accent }}>{formatSEK(totalPrice)}</span>
+              {totalDays > 0 && <span style={{ color: COLORS.textDim }}> · ~{totalDays} days</span>}
+            </div>
+          )}
+          {step !== 2 && selectedServices.length === 0 && <div />}
+          {step === 2 && <div />}
+
+          <div style={{ display: "flex", gap: 8 }}>
+            {step === 1 && (
+              <>
+                <button onClick={onClose} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 18px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+                <button
+                  onClick={generateBrief}
+                  disabled={!projectGoal.trim() || selectedServices.length === 0}
+                  style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 22px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: (!projectGoal.trim() || selectedServices.length === 0) ? "not-allowed" : "pointer", opacity: (!projectGoal.trim() || selectedServices.length === 0) ? 0.5 : 1 }}
+                >
+                  Generate Brief →
+                </button>
+              </>
+            )}
+            {step === 3 && (
+              <>
+                <button onClick={() => setStep(1)} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 18px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>← Edit</button>
+                <button onClick={copyToClipboard} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 18px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>Copy</button>
+                <button onClick={saveToDocs} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 22px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Save to Docs →</button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Services View ────────────────────────────────────────────────────────────
+const ServicesView = ({ services, clients, onEdit, onNew, onSave, onDelete, currentUserId, saveDoc, showToast }) => {
+  const [showBrief, setShowBrief] = useState(false);
+  const CATEGORIES = [...new Set(services.map(s => s.category))];
+  const totalRevenue = services.reduce((sum, s) => sum + s.price_sek, 0);
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.text }}>Services & Pricing</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: COLORS.textMuted }}>{services.length} services · avg {services.length > 0 ? Math.round(totalRevenue / services.length).toLocaleString("sv-SE") : 0} SEK</p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setShowBrief(true)} style={{ background: "none", border: `1px solid ${COLORS.accent}`, borderRadius: 8, padding: "8px 16px", color: COLORS.accent, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            ✨ Generate Brief
+          </button>
+          <button onClick={onNew} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            + Add Service
+          </button>
+        </div>
+      </div>
+
+      {CATEGORIES.map(cat => (
+        <div key={cat} style={{ marginBottom: 28 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>{cat}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {services.filter(s => s.category === cat).map(s => (
+              <div
+                key={s.id}
+                onClick={() => onEdit(s)}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 10, cursor: "pointer", transition: "all 0.15s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.borderLight; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.transform = "none"; }}
+              >
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginBottom: 3 }}>{s.name}</div>
+                  {s.description && <div style={{ fontSize: 12, color: COLORS.textMuted }}>{s.description}</div>}
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 20 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{s.price_sek.toLocaleString("sv-SE")} <span style={{ fontSize: 12, color: COLORS.textMuted }}>SEK</span></div>
+                  <div style={{ fontSize: 11, color: COLORS.textDim }}>~{s.estimated_days} day{s.estimated_days !== 1 ? "s" : ""}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {services.length === 0 && (
+        <div style={{ textAlign: "center", padding: "80px 20px", color: COLORS.textDim }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>💼</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.textMuted, marginBottom: 8 }}>No services yet</div>
+          <button onClick={onNew} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "10px 24px", color: COLORS.bg, fontSize: 14, fontWeight: 600, cursor: "pointer", marginTop: 12 }}>Add your first service</button>
+        </div>
+      )}
+
+      {showBrief && (
+        <CreativeBriefModal
+          clients={clients}
+          services={services}
+          currentUserId={currentUserId}
+          saveDoc={saveDoc}
+          showToast={showToast}
+          onClose={() => setShowBrief(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+
 // ─── Client Profile Modal ────────────────────────────────────────────────────
 const ClientProfileModal = ({ client, onSave, onDelete, onClose }) => {
   const isNew = !client;
@@ -3579,6 +3968,9 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { visibleFields, setVisibleFields, customFieldDefs: customFields, setCustomFieldDefs: setCustomFields } = useAppSettings();
   const { docs, loading: docsLoading, saveDoc, deleteDoc } = useDocs();
   const { clients, saveClient, deleteClient } = useClients();
+  const { services, saveService, deleteService } = useServices();
+  const [editingService, setEditingService] = useState(null);
+  const [showNewService, setShowNewService] = useState(false);
   const { notifications, unreadCount, markAllRead } = useNotifications(currentUserId);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -3778,7 +4170,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           <img src={LOGO_SRC} alt="creatly" style={{ height: 26, objectFit: "contain" }} />
           {/* Module tabs */}
           <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }, { key: "clients", label: "Clients" }].map((m) => (
+            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }, { key: "clients", label: "Clients" }, { key: "services", label: "Services" }].map((m) => (
               <button
                 key={m.key}
                 onClick={() => setModule(m.key)}
@@ -4107,6 +4499,20 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
             onNew={() => setShowNewClient(true)}
           />
         )}
+
+        {module === "services" && (
+          <ServicesView
+            services={services}
+            clients={clients}
+            onEdit={(s) => setEditingService(s)}
+            onNew={() => setShowNewService(true)}
+            onSave={saveService}
+            onDelete={deleteService}
+            currentUserId={currentUserId}
+            saveDoc={saveDoc}
+            showToast={showToast}
+          />
+        )}
       </main>
 
       {/* Project Modal (new projects only) */}
@@ -4141,6 +4547,24 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           onSave={saveClient}
           onDelete={deleteClient}
           onClose={() => setShowNewClient(false)}
+        />
+      )}
+
+      {/* Service Modals */}
+      {editingService && (
+        <ServiceModal
+          service={editingService}
+          onSave={saveService}
+          onDelete={deleteService}
+          onClose={() => setEditingService(null)}
+        />
+      )}
+      {showNewService && (
+        <ServiceModal
+          service={null}
+          onSave={saveService}
+          onDelete={deleteService}
+          onClose={() => setShowNewService(false)}
         />
       )}
 
@@ -4198,6 +4622,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         clientMap={clientMap}
         saveProject={saveProject}
         saveDoc={saveDoc}
+        services={services}
         deleteProject={deleteProject}
         currentUserId={currentUserId}
         onOpenProject={(p) => setDetailProject(p)}

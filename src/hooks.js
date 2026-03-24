@@ -456,3 +456,59 @@ export function useNotifications(userId) {
 
   return { notifications, unreadCount, markAllRead, clearAll }
 }
+
+// ─── Services Hook ────────────────────────────────────────────────────────────
+export function useServices() {
+  const [services, setServices] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('active', true)
+        .order('sort_order', { ascending: true })
+      if (!error && data) setServices(data)
+      setLoading(false)
+    }
+    fetch()
+  }, [])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('services-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setServices(prev => {
+            if (prev.find(s => s.id === payload.new.id)) return prev
+            return [...prev, payload.new].sort((a,b) => a.sort_order - b.sort_order)
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setServices(prev => prev.map(s => s.id === payload.new.id ? payload.new : s).filter(s => s.active))
+        } else if (payload.eventType === 'DELETE') {
+          setServices(prev => prev.filter(s => s.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [])
+
+  const saveService = useCallback(async (service) => {
+    const row = { ...service, updated_at: new Date().toISOString() }
+    const { error } = await supabase.from('services').upsert(row)
+    if (error) console.error('Save service error:', error)
+    setServices(prev => {
+      const idx = prev.findIndex(s => s.id === service.id)
+      if (idx >= 0) { const next = [...prev]; next[idx] = row; return next }
+      return [...prev, row].sort((a,b) => a.sort_order - b.sort_order)
+    })
+  }, [])
+
+  const deleteService = useCallback(async (id) => {
+    await supabase.from('services').update({ active: false }).eq('id', id)
+    setServices(prev => prev.filter(s => s.id !== id))
+  }, [])
+
+  return { services, loading, saveService, deleteService }
+}
