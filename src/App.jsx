@@ -3234,6 +3234,107 @@ RULES:
   );
 };
 
+// ─── Retro Modal ─────────────────────────────────────────────────────────────
+const RetroModal = ({ project, clients = [], onSave, onClose }) => {
+  const [worked, setWorked] = useState("");
+  const [didnt, setDidnt] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const client = clients.find(c => c.id === project.clientId);
+
+  const handleSubmit = async () => {
+    if (!worked.trim() && !didnt.trim()) { onClose(); return; }
+    setLoading(true);
+
+    try {
+      // Ask Claude to summarize the retro into a concise learning
+      const res = await fetch("/api/claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 300,
+          messages: [{
+            role: "user",
+            content: `Summarize this project retro into 2-3 punchy bullet points as a "Kit Learning" — things to remember for future projects. Be specific and actionable. No fluff.
+
+Project: ${project.title}
+Client: ${client?.name || "internal"}
+
+What worked:
+${worked || "(nothing noted)"}
+
+What didn't / what to do differently:
+${didnt || "(nothing noted)"}
+
+Return only the bullet points, starting each with •`
+          }]
+        }),
+      });
+      const data = await res.json();
+      const summary = data.content?.filter(c => c.type === "text").map(c => c.text).join("") || "";
+
+      const timestamp = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+      const retroEntry = `\n\n[Retro – ${project.title} – ${timestamp}]\n${summary}`;
+
+      if (client) {
+        // Append to client Kit Learnings
+        const existing = client.brand_context?.learnings || "";
+        onSave({ clientId: client.id, learnings: existing + retroEntry });
+      } else {
+        // Append to project notes
+        onSave({ projectId: project.id, notes: (project.notes || "") + retroEntry });
+      }
+    } catch (e) {
+      console.error("Retro save error:", e);
+    }
+    setLoading(false);
+    onClose();
+  };
+
+  const inputStyle = {
+    background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`,
+    borderRadius: 8, padding: "10px 14px", color: COLORS.text, fontSize: 13,
+    outline: "none", width: "100%", boxSizing: "border-box", resize: "vertical",
+    fontFamily: "inherit", lineHeight: 1.6,
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, width: "100%", maxWidth: 520, boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
+        <div style={{ padding: "20px 24px", borderBottom: `1px solid ${COLORS.border}` }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Project Complete 🎉</div>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: COLORS.text }}>{project.title}</h2>
+          {client && <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 4 }}>Client: {client.name}</div>}
+        </div>
+
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <p style={{ margin: 0, fontSize: 13, color: COLORS.textMuted, lineHeight: 1.6 }}>
+            Quick retro — Kit will turn this into a learning and save it{client ? ` to ${client.name}'s profile` : " to the project"}.
+          </p>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>✅ What worked?</label>
+            <textarea value={worked} onChange={e => setWorked(e.target.value)} rows={3} placeholder="What went well, what you'd repeat, what the client loved..." style={inputStyle} autoFocus />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>⚡ What to do differently?</label>
+            <textarea value={didnt} onChange={e => setDidnt(e.target.value)} rows={3} placeholder="What didn't work, what you'd change, lessons learned..." style={inputStyle} />
+          </div>
+        </div>
+
+        <div style={{ padding: "14px 24px", borderTop: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 18px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>
+            Skip
+          </button>
+          <button onClick={handleSubmit} disabled={loading} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 22px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+            {loading ? "Saving..." : "Save Retro →"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Client Profile Modal ────────────────────────────────────────────────────
 const ClientProfileModal = ({ client, onSave, onDelete, onClose }) => {
   const isNew = !client;
@@ -3463,6 +3564,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const [view, setView] = useState("board");
   const [modal, setModal] = useState(null);
   const [detailProject, setDetailProject] = useState(null);
+  const [retroProject, setRetroProject] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
   const [showNewClient, setShowNewClient] = useState(false);
   const [search, setSearch] = useState("");
@@ -3538,8 +3640,12 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   };
 
   const handleDetailSave = (project) => {
+    // Trigger retro modal when project is marked Done for the first time
+    const prev = projects.find(p => p.id === project.id);
+    if (project.status === "done" && prev && prev.status !== "done") {
+      setRetroProject(project);
+    }
     saveProject(project, currentUserId);
-    // Update the detailProject reference so the view stays in sync
     setDetailProject(project);
   };
 
@@ -4004,6 +4110,30 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           onSave={saveClient}
           onDelete={deleteClient}
           onClose={() => setShowNewClient(false)}
+        />
+      )}
+
+      {/* Retro Modal */}
+      {retroProject && (
+        <RetroModal
+          project={retroProject}
+          clients={clients}
+          onSave={async ({ clientId, learnings, projectId, notes }) => {
+            if (clientId) {
+              const client = clients.find(c => c.id === clientId);
+              if (client) {
+                await saveClient({ ...client, brand_context: { ...client.brand_context, learnings } });
+                showToast("Retro saved to " + client.name + "'s Kit Learnings 🧠");
+              }
+            } else if (projectId) {
+              const proj = projects.find(p => p.id === projectId);
+              if (proj) {
+                await saveProject({ ...proj, notes }, currentUserId);
+                showToast("Retro saved to project notes 🧠");
+              }
+            }
+          }}
+          onClose={() => setRetroProject(null)}
         />
       )}
 
