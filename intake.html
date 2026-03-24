@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Creatly — Brief Intake</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', 'Helvetica Neue', sans-serif;
+      background: #0A0A0A;
+      color: #F0F0F0;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+    .wrap { max-width: 620px; margin: 0 auto; }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; }
+    .logo img { height: 28px; }
+    .logo-tag { font-size: 12px; color: #707070; letter-spacing: 0.06em; text-transform: uppercase; }
+    h1 { font-size: 26px; font-weight: 700; color: #F0F0F0; margin-bottom: 8px; }
+    .subtitle { font-size: 14px; color: #A0A0A0; margin-bottom: 36px; line-height: 1.6; }
+    .section { margin-bottom: 28px; }
+    .section-title { font-size: 11px; font-weight: 600; color: #7ACF85; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #2C2C2C; }
+    label { font-size: 12px; color: #A0A0A0; font-weight: 500; display: block; margin-bottom: 6px; }
+    .required { color: #7ACF85; }
+    input, textarea, select {
+      width: 100%; background: #1C1C1C; border: 1px solid #2C2C2C;
+      border-radius: 8px; padding: 10px 14px; color: #F0F0F0;
+      font-size: 14px; font-family: inherit; outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus, textarea:focus, select:focus { border-color: #7ACF85; }
+    textarea { resize: vertical; line-height: 1.6; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { margin-bottom: 16px; }
+    .tone-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    }
+    .tone-chip {
+      display: flex; align-items: center; gap: 8px;
+      background: #1C1C1C; border: 1px solid #2C2C2C;
+      border-radius: 8px; padding: 9px 12px;
+      cursor: pointer; transition: all 0.15s; user-select: none;
+      font-size: 13px; color: #A0A0A0;
+    }
+    .tone-chip input[type=checkbox] { display: none; }
+    .tone-chip.checked { border-color: #7ACF85; background: rgba(122,207,133,0.08); color: #F0F0F0; }
+    .tone-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: #3A3A3A; flex-shrink: 0; transition: background 0.15s; }
+    .tone-chip.checked .dot { background: #7ACF85; }
+    .submit-btn {
+      width: 100%; background: #7ACF85; border: none; border-radius: 10px;
+      padding: 14px; color: #0A0A0A; font-size: 15px; font-weight: 700;
+      font-family: inherit; cursor: pointer; transition: all 0.2s;
+      margin-top: 8px;
+    }
+    .submit-btn:hover { background: #5BB866; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(122,207,133,0.3); }
+    .submit-btn:disabled { background: #2C2C2C; color: #707070; cursor: not-allowed; transform: none; box-shadow: none; }
+    .success {
+      text-align: center; padding: 60px 20px;
+    }
+    .success-icon { font-size: 52px; margin-bottom: 20px; }
+    .success h2 { font-size: 22px; font-weight: 700; color: #F0F0F0; margin-bottom: 10px; }
+    .success p { font-size: 14px; color: #A0A0A0; line-height: 1.6; }
+    .error-msg { font-size: 12px; color: #FF6B6B; margin-top: 12px; text-align: center; }
+    @media (max-width: 500px) {
+      .grid2 { grid-template-columns: 1fr; }
+      .tone-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">
+      <img src="data:image/png;base64,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" alt="Creatly" />
+      <span class="logo-tag">Brief Intake</span>
+    </div>
+
+    <div id="form-container">
+      <h1>Tell us about your brand</h1>
+      <p class="subtitle">Fill this out and we'll hit the ground running. Takes about 3 minutes.</p>
+
+      <div class="section">
+        <div class="section-title">About You</div>
+        <div class="grid2">
+          <div class="field">
+            <label>Brand / Company Name <span class="required">*</span></label>
+            <input id="brand_name" type="text" placeholder="e.g. Hatstore, Nike..." />
+          </div>
+          <div class="field">
+            <label>Industry</label>
+            <input id="industry" type="text" placeholder="e-commerce, SaaS, fashion..." />
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label>Your Name</label>
+            <input id="contact_name" type="text" placeholder="John Smith" />
+          </div>
+          <div class="field">
+            <label>Your Email</label>
+            <input id="contact_email" type="email" placeholder="john@brand.com" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">The Brief</div>
+        <div class="field">
+          <label>What do you need help with? <span class="required">*</span></label>
+          <textarea id="brief" rows="5" placeholder="Describe your goals, what you're trying to achieve, any deliverables you have in mind, timeline, budget range (if you're comfortable sharing)..."></textarea>
+        </div>
+        <div class="field">
+          <label>Who's your audience?</label>
+          <textarea id="audience" rows="2" placeholder="Age, interests, platforms they use, what they care about..."></textarea>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Brand Tone</div>
+        <p style="font-size: 13px; color: #707070; margin-bottom: 14px;">Pick everything that feels like your brand:</p>
+        <div class="tone-grid" id="tone-chips">
+          <label class="tone-chip"><input type="checkbox" value="Bold"><span class="dot"></span>Bold</label>
+          <label class="tone-chip"><input type="checkbox" value="Playful"><span class="dot"></span>Playful</label>
+          <label class="tone-chip"><input type="checkbox" value="Professional"><span class="dot"></span>Professional</label>
+          <label class="tone-chip"><input type="checkbox" value="Minimal"><span class="dot"></span>Minimal</label>
+          <label class="tone-chip"><input type="checkbox" value="Inspiring"><span class="dot"></span>Inspiring</label>
+          <label class="tone-chip"><input type="checkbox" value="Educational"><span class="dot"></span>Educational</label>
+          <label class="tone-chip"><input type="checkbox" value="Premium"><span class="dot"></span>Premium</label>
+          <label class="tone-chip"><input type="checkbox" value="Casual"><span class="dot"></span>Casual</label>
+          <label class="tone-chip"><input type="checkbox" value="Data-driven"><span class="dot"></span>Data-driven</label>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">References & Extra</div>
+        <div class="field">
+          <label>Brands you admire / inspiration</label>
+          <textarea id="references" rows="2" placeholder="Brands whose content, style, or marketing you like — and why..."></textarea>
+        </div>
+        <div class="field">
+          <label>Anything else we should know?</label>
+          <textarea id="extra" rows="2" placeholder="Constraints, past work, things that haven't worked, strong opinions..."></textarea>
+        </div>
+      </div>
+
+      <div id="error-msg" class="error-msg" style="display:none;"></div>
+      <button class="submit-btn" id="submit-btn" onclick="handleSubmit()">Send Brief →</button>
+    </div>
+
+    <div id="success-container" class="success" style="display:none;">
+      <div class="success-icon">✅</div>
+      <h2>Brief received!</h2>
+      <p>Thanks — we'll review your brief and be in touch shortly.<br/>We're excited to work with you.</p>
+    </div>
+  </div>
+
+  <script>
+    // Toggle tone chips
+    document.querySelectorAll('.tone-chip').forEach(chip => {
+      chip.addEventListener('click', () => chip.classList.toggle('checked'));
+    });
+
+    async function handleSubmit() {
+      const btn = document.getElementById('submit-btn');
+      const errEl = document.getElementById('error-msg');
+      const brand_name = document.getElementById('brand_name').value.trim();
+      const brief = document.getElementById('brief').value.trim();
+
+      errEl.style.display = 'none';
+      if (!brand_name) { showError('Brand name is required.'); return; }
+      if (!brief) { showError('Please describe what you need help with.'); return; }
+
+      const tone_checkboxes = [...document.querySelectorAll('.tone-chip.checked input')].map(i => i.value);
+
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+
+      try {
+        const res = await fetch('/api/intake', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            brand_name,
+            contact_name: document.getElementById('contact_name').value.trim(),
+            contact_email: document.getElementById('contact_email').value.trim(),
+            industry: document.getElementById('industry').value.trim(),
+            brief,
+            tone_checkboxes,
+            audience: document.getElementById('audience').value.trim(),
+            references: document.getElementById('references').value.trim(),
+            extra: document.getElementById('extra').value.trim(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Something went wrong');
+        document.getElementById('form-container').style.display = 'none';
+        document.getElementById('success-container').style.display = 'block';
+      } catch (err) {
+        showError(err.message || 'Something went wrong. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Send Brief →';
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients } from "./hooks";
+import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications } from "./hooks";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -3361,12 +3361,23 @@ const ClientsView = ({ clients, projects, onEdit, onSave, onDelete, onNew }) => 
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.text }}>Clients</h2>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: COLORS.textMuted }}>{clients.length} client{clients.length !== 1 ? "s" : ""}</p>
         </div>
-        <button
-          onClick={onNew}
-          style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-        >
-          + New Client
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/intake.html`;
+              navigator.clipboard.writeText(url).then(() => alert("Intake link copied to clipboard!"));
+            }}
+            style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 14px", color: COLORS.textMuted, fontSize: 13, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            🔗 Share Intake Form
+          </button>
+          <button
+            onClick={onNew}
+            style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            + New Client
+          </button>
+        </div>
       </div>
 
       {clients.length === 0 ? (
@@ -3436,6 +3447,18 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { visibleFields, setVisibleFields, customFieldDefs: customFields, setCustomFieldDefs: setCustomFields } = useAppSettings();
   const { docs, loading: docsLoading, saveDoc, deleteDoc } = useDocs();
   const { clients, saveClient, deleteClient } = useClients();
+  const { notifications, unreadCount, markAllRead } = useNotifications(currentUserId);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Close notifications on outside click
+  useEffect(() => {
+    if (!showNotifications) return;
+    const handler = (e) => {
+      if (!e.target.closest("[data-notif-panel]")) setShowNotifications(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showNotifications]);
   const [module, setModule] = useState("home");
   const [view, setView] = useState("board");
   const [modal, setModal] = useState(null);
@@ -3681,6 +3704,75 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         </div>}
 
         <div className="creatly-header-actions" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Notification Bell */}
+          <div style={{ position: "relative" }} data-notif-panel="true">
+            <button
+              onClick={() => { setShowNotifications(v => !v); if (!showNotifications) markAllRead(); }}
+              style={{
+                background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`,
+                borderRadius: 6, padding: "7px 10px", cursor: "pointer",
+                color: COLORS.textMuted, fontSize: 15, lineHeight: 1, position: "relative",
+              }}
+              title="Notifications"
+            >
+              🔔
+              {unreadCount > 0 && (
+                <span style={{
+                  position: "absolute", top: 3, right: 3, width: 8, height: 8,
+                  borderRadius: "50%", background: COLORS.accent, display: "block",
+                }} />
+              )}
+            </button>
+            {showNotifications && (
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 500,
+                  background: COLORS.surface, border: `1px solid ${COLORS.border}`,
+                  borderRadius: 10, width: 320, maxHeight: 400, overflow: "auto",
+                  boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+                }}
+              >
+                <div style={{ padding: "12px 16px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Notifications</span>
+                  <button onClick={() => setShowNotifications(false)} style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", fontSize: 16 }}>×</button>
+                </div>
+                {notifications.length === 0 ? (
+                  <div style={{ padding: "32px 16px", textAlign: "center", color: COLORS.textDim, fontSize: 13 }}>No notifications yet</div>
+                ) : (
+                  notifications.map(n => (
+                    <div
+                      key={n.id}
+                      onClick={() => { if (n.type === "intake") setModule("clients"); setShowNotifications(false); }}
+                      style={{
+                        padding: "12px 16px", borderBottom: `1px solid ${COLORS.border}`,
+                        cursor: n.type === "intake" ? "pointer" : "default",
+                        background: n[`read_${currentUserId}`] ? "transparent" : `${COLORS.accent}08`,
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={e => { if (n.type === "intake") e.currentTarget.style.background = COLORS.surfaceHover; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = n[`read_${currentUserId}`] ? "transparent" : `${COLORS.accent}08`; }}
+                    >
+                      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                        <span style={{ fontSize: 16, flexShrink: 0 }}>{n.type === "intake" ? "📋" : "🔄"}</span>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginBottom: 2 }}>{n.title}</div>
+                          {n.body && <div style={{ fontSize: 12, color: COLORS.textMuted }}>{n.body}</div>}
+                          <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>
+                            {new Date(n.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </div>
+                        </div>
+                        {!n[`read_${currentUserId}`] && (
+                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS.accent, flexShrink: 0, marginTop: 4 }} />
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
           {/* User indicator */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}` }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.accent }} />

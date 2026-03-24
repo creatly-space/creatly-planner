@@ -394,3 +394,56 @@ export function useClients() {
 
   return { clients, loading, saveClient, deleteClient }
 }
+
+// ─── Notifications Hook ───────────────────────────────────────────────────────
+export function useNotifications(userId) {
+  const [notifications, setNotifications] = useState([])
+
+  useEffect(() => {
+    if (!userId) return
+    const fetch = async () => {
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (data) setNotifications(data)
+    }
+    fetch()
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId) return
+    const channel = supabase
+      .channel('notifications-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setNotifications(prev => {
+            if (prev.find(n => n.id === payload.new.id)) return prev
+            return [payload.new, ...prev]
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setNotifications(prev => prev.map(n => n.id === payload.new.id ? payload.new : n))
+        } else if (payload.eventType === 'DELETE') {
+          setNotifications(prev => prev.filter(n => n.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [userId])
+
+  const markAllRead = async () => {
+    if (!userId) return
+    const readField = `read_${userId}`
+    const unread = notifications.filter(n => !n[readField])
+    if (unread.length === 0) return
+    setNotifications(prev => prev.map(n => ({ ...n, [readField]: true })))
+    for (const n of unread) {
+      await supabase.from('notifications').update({ [readField]: true }).eq('id', n.id)
+    }
+  }
+
+  const unreadCount = notifications.filter(n => !n[`read_${userId}`]).length
+
+  return { notifications, unreadCount, markAllRead }
+}
