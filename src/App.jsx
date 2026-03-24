@@ -2741,7 +2741,7 @@ const TagManagerModal = ({ tagColors, allTags, onUpdate, onClose }) => {
 };
 
 // ─── AI Chat Assistant ──────────────────────────────────────────────────────
-const AiChatAssistant = ({ projects, docs, clients = [], clientMap = {}, saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
+const AiChatAssistant = ({ projects, docs, saveDoc, clients = [], clientMap = {}, saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: "assistant", content: "Hey! I'm Kit, your Creatly assistant. I can create projects, add to-dos, write emails & copy based on your brand docs, or just chat. Try talking to me — hit the mic button!" }
@@ -2836,7 +2836,7 @@ const AiChatAssistant = ({ projects, docs, clients = [], clientMap = {}, savePro
     const docsContext = sortedDocs
       .filter(d => d.content && d.content.trim())
       .slice(0, 10)
-      .map(d => `[${d.folder || "General"}] ${d.title}:\n${d.content.slice(0, 1500)}`)
+      .map(d => `[${d.folder || "General"}] ${d.title} (id:${d.id}):\n${d.content.slice(0, 1500)}`)
       .join("\n\n---\n\n");
 
     return `You are Kit, the AI assistant inside Creatly — a creative bureau that focuses only on AI. You help the team (Ludvig and Johannes) manage projects, write content, and get things done. You're sharp, helpful, and a bit playful.
@@ -2891,6 +2891,12 @@ You can perform actions by including a JSON block in your response wrapped in <a
 5. Plan a full project from a goal (AI Project Planner — use this when the user gives you a goal, client, and/or deadline and asks you to plan it out):
 <actions>[{"action":"plan_projects","projects":[{"title":"...","description":"...","status":"backlog","priority":"high","assignee":"ludvig"|"johannes"|null,"clientId":null,"tags":["tag1"],"dateMode":"range","startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD","todos":[{"text":"task","assignee":"ludvig"|"johannes"|null}]}]}]</actions>
 
+6. Create a new doc in the Creatly Docs knowledge base:
+<actions>[{"action":"create_doc","title":"...","content":"full markdown content here","folder":"General|Brand Guidelines|SOPs|Meeting Notes|Templates|Strategy"}]</actions>
+
+7. Update an existing doc (use the doc id from the knowledge base context):
+<actions>[{"action":"update_doc","id":"doc-uuid","title":"...","content":"updated full markdown content"}]</actions>
+
 RULES:
 - Always respond conversationally AND include actions when the user wants something done.
 - For new projects, use sensible defaults: status=backlog, priority=medium, dateMode=range, startDate=today, endDate=2 weeks from now.
@@ -2903,7 +2909,9 @@ RULES:
 - Keep responses short and punchy. No fluff.
 - If you need to reference a project, use its title — the user doesn't know UUIDs.
 - You can include multiple actions in one response.
-- For plan_projects: break the goal into logical sub-projects (e.g. Strategy, Content Production, Distribution), assign realistic dates spread across the timeline, and populate each with specific actionable to-dos with assignees. Think like a project manager.`;
+- For plan_projects: break the goal into logical sub-projects (e.g. Strategy, Content Production, Distribution), assign realistic dates spread across the timeline, and populate each with specific actionable to-dos with assignees. Think like a project manager.
+- For create_doc / update_doc: write proper markdown — use headers, bullets, sections. Pick the most relevant folder. When asked to "save this to Docs" or "create a doc about X", use these actions. For update_doc, rewrite the full content.
+- You can see existing doc IDs in the knowledge base context above — use them for update_doc.`;
   };
 
   const executeActions = async (actionsText) => {
@@ -3012,6 +3020,29 @@ RULES:
             }
           }
           showToast(`Created ${projectList.length} project${projectList.length !== 1 ? "s" : ""} 🎯`);
+        } else if (action.action === "create_doc") {
+          const newDoc = {
+            id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+            title: action.title || "Untitled",
+            content: action.content || "",
+            folder: action.folder || "General",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          await saveDoc(newDoc, currentUserId);
+          showToast(`Doc created: "${newDoc.title}" 📝`);
+        } else if (action.action === "update_doc") {
+          const existing = docs.find(d => d.id === action.id);
+          if (existing) {
+            const updated = {
+              ...existing,
+              title: action.title || existing.title,
+              content: action.content || existing.content,
+              updated_at: new Date().toISOString(),
+            };
+            await saveDoc(updated, currentUserId);
+            showToast(`Doc updated: "${updated.title}" 📝`);
+          }
         }
       }
     } catch (e) {
@@ -4166,6 +4197,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         clients={clients}
         clientMap={clientMap}
         saveProject={saveProject}
+        saveDoc={saveDoc}
         deleteProject={deleteProject}
         currentUserId={currentUserId}
         onOpenProject={(p) => setDetailProject(p)}
