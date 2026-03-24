@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients } from "./hooks";
+import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications } from "./hooks";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -2841,6 +2841,30 @@ const AiChatAssistant = ({ projects, docs, clients = [], clientMap = {}, savePro
 
     return `You are Kit, the AI assistant inside Creatly — a creative bureau that focuses only on AI. You help the team (Ludvig and Johannes) manage projects, write content, and get things done. You're sharp, helpful, and a bit playful.
 
+You have access to web search. Use it proactively when you need current information — competitor research, market context, brand analysis, pricing, recent news, etc. Don't ask permission to search, just do it.
+
+COMPETITIVE BRIEF: When a user asks you to research a competitor or gives you a URL/brand name to analyze, use web search to gather real data and output a structured brief in this format:
+
+---
+**COMPETITIVE BRIEF: [Brand Name]**
+
+**Overview** — What they do, positioning, target audience
+
+**Creative & Content** — Ad style, content formats, tone, visual identity
+
+**Channels** — Where they're active (Meta, TikTok, email, SEO, etc.)
+
+**Strengths** — What they do well
+
+**Weaknesses / Gaps** — Where they're weak or missing
+
+**Opportunities for [our client / Creatly]** — Specific angles we can exploit
+
+**Key Takeaways** — 3–5 bullets for immediate action
+---
+
+Always ground the brief in real findings from your search. Be specific — mention actual campaigns, taglines, or tactics if you find them.
+
 CURRENT PROJECTS:
 ${projectSummary || "(no projects yet)"}
 
@@ -2864,6 +2888,9 @@ You can perform actions by including a JSON block in your response wrapped in <a
 4. Add to-dos to a project (requires project id):
 <actions>[{"action":"add_todos","project_id":"project-uuid","todos":[{"text":"task text","assignee":"ludvig"|"johannes"|null}]}]</actions>
 
+5. Plan a full project from a goal (AI Project Planner — use this when the user gives you a goal, client, and/or deadline and asks you to plan it out):
+<actions>[{"action":"plan_projects","projects":[{"title":"...","description":"...","status":"backlog","priority":"high","assignee":"ludvig"|"johannes"|null,"clientId":null,"tags":["tag1"],"dateMode":"range","startDate":"YYYY-MM-DD","endDate":"YYYY-MM-DD","todos":[{"text":"task","assignee":"ludvig"|"johannes"|null}]}]}]</actions>
+
 RULES:
 - Always respond conversationally AND include actions when the user wants something done.
 - For new projects, use sensible defaults: status=backlog, priority=medium, dateMode=range, startDate=today, endDate=2 weeks from now.
@@ -2875,7 +2902,8 @@ RULES:
 - When asked about what's going on, summarize projects grouped by status.
 - Keep responses short and punchy. No fluff.
 - If you need to reference a project, use its title — the user doesn't know UUIDs.
-- You can include multiple actions in one response.`;
+- You can include multiple actions in one response.
+- For plan_projects: break the goal into logical sub-projects (e.g. Strategy, Content Production, Distribution), assign realistic dates spread across the timeline, and populate each with specific actionable to-dos with assignees. Think like a project manager.`;
   };
 
   const executeActions = async (actionsText) => {
@@ -2949,6 +2977,41 @@ RULES:
           }));
           await supabase.from("todos").upsert(rows);
           showToast(`Added ${rows.length} to-do(s)`);
+        } else if (action.action === "plan_projects") {
+          const { supabase } = await import("./supabase");
+          const projectList = action.projects || [];
+          for (const p of projectList) {
+            const project = {
+              id: uid(),
+              title: p.title || "Untitled",
+              description: p.description || "",
+              status: p.status || "backlog",
+              priority: p.priority || "medium",
+              assignee: p.assignee || null,
+              clientId: p.clientId || null,
+              dateMode: p.dateMode || "range",
+              startDate: p.startDate || new Date().toISOString().split("T")[0],
+              endDate: p.endDate || new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
+              tags: p.tags || [],
+              notes: p.notes || "",
+              customFields: {},
+              created: new Date().toISOString(),
+            };
+            await saveProject(project, currentUserId);
+            if (p.todos && p.todos.length > 0) {
+              const todoRows = p.todos.map((item, i) => ({
+                id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+                project_id: project.id,
+                text: item.text,
+                assignee: item.assignee || null,
+                done: false,
+                sort_order: i,
+                created_at: new Date().toISOString(),
+              }));
+              await supabase.from("todos").upsert(todoRows);
+            }
+          }
+          showToast(`Created ${projectList.length} project${projectList.length !== 1 ? "s" : ""} 🎯`);
         }
       }
     } catch (e) {
@@ -2973,14 +3036,15 @@ RULES:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 2000,
+          max_tokens: 4000,
           system: buildSystemPrompt(),
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
           messages: apiMessages,
         }),
       });
 
       const data = await response.json();
-      const text = data.content?.map(c => c.text || "").join("") || "Sorry, something went wrong.";
+      const text = data.content?.filter(c => c.type === "text").map(c => c.text || "").join("") || "Sorry, something went wrong.";
 
       // Extract and execute actions
       const actionsMatch = text.match(/<actions>([\s\S]*?)<\/actions>/);
@@ -3241,8 +3305,8 @@ const ClientProfileModal = ({ client, onSave, onDelete, onClose }) => {
                 <textarea value={form.brand_context?.preferences || ""} onChange={e => updateBrand("preferences", e.target.value)} placeholder="Preferred content formats, platforms, audience info, what works well..." rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }} />
               </div>
               <div>
-                <label style={labelStyle}>Learnings & Notes</label>
-                <textarea value={form.brand_context?.learnings || ""} onChange={e => updateBrand("learnings", e.target.value)} placeholder="What has worked, what hasn't, things to remember..." rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }} />
+                <label style={labelStyle}>Kit Learnings</label>
+                <textarea value={form.brand_context?.learnings || ""} onChange={e => updateBrand("learnings", e.target.value)} placeholder="Insights Kit should always remember for this client — what's worked, what hasn't, specific quirks, lessons from past projects..." rows={4} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }} />
               </div>
             </div>
           </div>
@@ -3297,12 +3361,23 @@ const ClientsView = ({ clients, projects, onEdit, onSave, onDelete, onNew }) => 
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.text }}>Clients</h2>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: COLORS.textMuted }}>{clients.length} client{clients.length !== 1 ? "s" : ""}</p>
         </div>
-        <button
-          onClick={onNew}
-          style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-        >
-          + New Client
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/intake.html`;
+              navigator.clipboard.writeText(url).then(() => alert("Intake link copied to clipboard!"));
+            }}
+            style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 14px", color: COLORS.textMuted, fontSize: 13, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            🔗 Share Intake Form
+          </button>
+          <button
+            onClick={onNew}
+            style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            + New Client
+          </button>
+        </div>
       </div>
 
       {clients.length === 0 ? (
@@ -3372,6 +3447,18 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { visibleFields, setVisibleFields, customFieldDefs: customFields, setCustomFieldDefs: setCustomFields } = useAppSettings();
   const { docs, loading: docsLoading, saveDoc, deleteDoc } = useDocs();
   const { clients, saveClient, deleteClient } = useClients();
+  const { notifications, unreadCount, markAllRead } = useNotifications(currentUserId);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Close notifications on outside click
+  useEffect(() => {
+    if (!showNotifications) return;
+    const handler = (e) => {
+      if (!e.target.closest("[data-notif-panel]")) setShowNotifications(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showNotifications]);
   const [module, setModule] = useState("home");
   const [view, setView] = useState("board");
   const [modal, setModal] = useState(null);
@@ -3617,6 +3704,75 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         </div>}
 
         <div className="creatly-header-actions" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Notification Bell */}
+          <div style={{ position: "relative" }} data-notif-panel="true">
+            <button
+              onClick={() => { setShowNotifications(v => !v); if (!showNotifications) markAllRead(); }}
+              style={{
+                background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`,
+                borderRadius: 6, padding: "7px 10px", cursor: "pointer",
+                color: COLORS.textMuted, fontSize: 15, lineHeight: 1, position: "relative",
+              }}
+              title="Notifications"
+            >
+              🔔
+              {unreadCount > 0 && (
+                <span style={{
+                  position: "absolute", top: 3, right: 3, width: 8, height: 8,
+                  borderRadius: "50%", background: COLORS.accent, display: "block",
+                }} />
+              )}
+            </button>
+            {showNotifications && (
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 500,
+                  background: COLORS.surface, border: `1px solid ${COLORS.border}`,
+                  borderRadius: 10, width: 320, maxHeight: 400, overflow: "auto",
+                  boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+                }}
+              >
+                <div style={{ padding: "12px 16px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Notifications</span>
+                  <button onClick={() => setShowNotifications(false)} style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", fontSize: 16 }}>×</button>
+                </div>
+                {notifications.length === 0 ? (
+                  <div style={{ padding: "32px 16px", textAlign: "center", color: COLORS.textDim, fontSize: 13 }}>No notifications yet</div>
+                ) : (
+                  notifications.map(n => (
+                    <div
+                      key={n.id}
+                      onClick={() => { if (n.type === "intake") setModule("clients"); setShowNotifications(false); }}
+                      style={{
+                        padding: "12px 16px", borderBottom: `1px solid ${COLORS.border}`,
+                        cursor: n.type === "intake" ? "pointer" : "default",
+                        background: n[`read_${currentUserId}`] ? "transparent" : `${COLORS.accent}08`,
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={e => { if (n.type === "intake") e.currentTarget.style.background = COLORS.surfaceHover; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = n[`read_${currentUserId}`] ? "transparent" : `${COLORS.accent}08`; }}
+                    >
+                      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                        <span style={{ fontSize: 16, flexShrink: 0 }}>{n.type === "intake" ? "📋" : "🔄"}</span>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginBottom: 2 }}>{n.title}</div>
+                          {n.body && <div style={{ fontSize: 12, color: COLORS.textMuted }}>{n.body}</div>}
+                          <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>
+                            {new Date(n.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </div>
+                        </div>
+                        {!n[`read_${currentUserId}`] && (
+                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS.accent, flexShrink: 0, marginTop: 4 }} />
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
           {/* User indicator */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}` }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.accent }} />
