@@ -3969,6 +3969,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { docs, loading: docsLoading, saveDoc, deleteDoc } = useDocs();
   const { clients, saveClient, deleteClient } = useClients();
   const { services, saveService, deleteService } = useServices();
+  const { ideas, saveIdea, deleteIdea } = useIdeas();
   const [editingService, setEditingService] = useState(null);
   const [showNewService, setShowNewService] = useState(false);
   const { notifications, unreadCount, markAllRead } = useNotifications(currentUserId);
@@ -4170,7 +4171,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           <img src={LOGO_SRC} alt="creatly" style={{ height: 26, objectFit: "contain" }} />
           {/* Module tabs */}
           <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }, { key: "clients", label: "Clients" }, { key: "services", label: "Services" }].map((m) => (
+            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "ideas", label: "Ideas" }, { key: "docs", label: "Docs" }, { key: "clients", label: "Clients" }, { key: "services", label: "Services" }].map((m) => (
               <button
                 key={m.key}
                 onClick={() => setModule(m.key)}
@@ -4547,6 +4548,17 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           onSave={saveClient}
           onDelete={deleteClient}
           onClose={() => setShowNewClient(false)}
+        />
+      )}
+
+
+      {/* Ideas view */}
+      {module === "ideas" && (
+        <IdeasView
+          ideas={ideas}
+          onSave={saveIdea}
+          onDelete={deleteIdea}
+          currentUser={currentUser}
         />
       )}
 
