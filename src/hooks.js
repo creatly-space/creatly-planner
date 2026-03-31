@@ -515,41 +515,12 @@ export function useServices() {
 
 export function useIdeas() {
   const [ideas, setIdeas] = React.useState([]);
-
-  const fetchIdeas = async () => {
-    const { data } = await supabase.from('ideas').select('*').order('created_at', { ascending: false });
-    if (data) setIdeas(data);
+  const fetch = async () => {
+    const {data} = await supabase.from('ideas').select('*').order('created_at',{ascending:false});
+    if(data) setIdeas(data);
   };
-
-  React.useEffect(() => {
-    fetchIdeas();
-    const channel = supabase.channel('ideas-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ideas' }, fetchIdeas)
-      .subscribe();
-    return () => supabase.removeChannel(channel);
-  }, []);
-
-  const saveIdea = async (idea) => {
-    const row = {
-      id: idea.id || crypto.randomUUID(),
-      title: idea.title || 'Untitled',
-      description: idea.description || '',
-      status: idea.status || 'inbox',
-      category: idea.category || 'other',
-      assigned_to: idea.assigned_to || null,
-      created_by: idea.created_by || null,
-      created_at: idea.created_at || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    const { error } = await supabase.from('ideas').upsert(row);
-    if (error) console.error('saveIdea error:', error);
-    return row;
-  };
-
-  const deleteIdea = async (id) => {
-    const { error } = await supabase.from('ideas').delete().eq('id', id);
-    if (error) console.error('deleteIdea error:', error);
-  };
-
-  return { ideas, saveIdea, deleteIdea };
+  React.useEffect(()=>{ fetch(); const ch=supabase.channel('ideas-rt').on('postgres_changes',{event:'*',schema:'public',table:'ideas'},fetch).subscribe(); return ()=>supabase.removeChannel(ch); },[]);
+  const saveIdea = async(idea)=>{ const row={id:idea.id||crypto.randomUUID(),title:idea.title||'',description:idea.description||'',status:idea.status||'inbox',category:idea.category||'other',assigned_to:idea.assigned_to||null,created_by:idea.created_by||null,created_at:idea.created_at||new Date().toISOString(),updated_at:new Date().toISOString()}; await supabase.from('ideas').upsert(row); return row; };
+  const deleteIdea = async(id)=>{ await supabase.from('ideas').delete().eq('id',id); };
+  return {ideas,saveIdea,deleteIdea};
 }
