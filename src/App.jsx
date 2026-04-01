@@ -4568,6 +4568,13 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         />
       )}
 
+      {/* Idea Modals */}
+      {showNewIdea && (
+        <IdeaModal idea={null} clients={clients} onSave={saveIdea} onClose={() => setShowNewIdea(false)} currentUserId={currentUserId} />
+      )}
+      {editingIdea && (
+        <IdeaModal idea={editingIdea} clients={clients} onSave={saveIdea} onDelete={deleteIdea} onClose={() => setEditingIdea(null)} currentUserId={currentUserId} />
+      )}
       {/* Retro Modal */}
       {retroProject && (
         <RetroModal
