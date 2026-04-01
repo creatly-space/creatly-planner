@@ -512,3 +512,63 @@ export function useServices() {
 
   return { services, loading, saveService, deleteService }
 }
+
+// ─── Ideas Hook ───────────────────────────────────────────────────────────────
+export function useIdeas() {
+  const [ideas, setIdeas] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data, error } = await supabase
+        .from('ideas')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (!error && data) setIdeas(data)
+      setLoading(false)
+    }
+    fetch()
+  }, [])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('ideas-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ideas' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setIdeas(prev => {
+            if (prev.find(i => i.id === payload.new.id)) return prev
+            return [payload.new, ...prev]
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setIdeas(prev => prev.map(i => i.id === payload.new.id ? payload.new : i))
+        } else if (payload.eventType === 'DELETE') {
+          setIdeas(prev => prev.filter(i => i.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [])
+
+  const saveIdea = useCallback(async (idea, userId) => {
+    const row = {
+      ...idea,
+      updated_at: new Date().toISOString(),
+      created_by: idea.created_by || userId || null,
+    }
+    const { error } = await supabase.from('ideas').upsert(row)
+    if (error) console.error('Save idea error:', error)
+    setIdeas(prev => {
+      const idx = prev.findIndex(i => i.id === idea.id)
+      if (idx >= 0) { const next = [...prev]; next[idx] = row; return next }
+      return [row, ...prev]
+    })
+  }, [])
+
+  const deleteIdea = useCallback(async (id) => {
+    const { error } = await supabase.from('ideas').delete().eq('id', id)
+    if (error) console.error('Delete idea error:', error)
+    setIdeas(prev => prev.filter(i => i.id !== id))
+  }, [])
+
+  return { ideas, loading, saveIdea, deleteIdea }
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications, useServices } from "./hooks";
+import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications, useServices, useIdeas } from "./hooks";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -2741,7 +2741,7 @@ const TagManagerModal = ({ tagColors, allTags, onUpdate, onClose }) => {
 };
 
 // ─── AI Chat Assistant ──────────────────────────────────────────────────────
-const AiChatAssistant = ({ projects, docs, saveDoc, clients = [], clientMap = {}, services = [], saveProject, deleteProject, currentUserId, onOpenProject, showToast }) => {
+const AiChatAssistant = ({ projects, docs, saveDoc, clients = [], clientMap = {}, services = [], saveProject, deleteProject, currentUserId, onOpenProject, showToast, pendingMessage, onPendingMessageConsumed }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: "assistant", content: "Hey! I'm Kit, your Creatly assistant. I can create projects, add to-dos, write emails & copy based on your brand docs, or just chat. Try talking to me — hit the mic button!" }
@@ -2753,10 +2753,23 @@ const AiChatAssistant = ({ projects, docs, saveDoc, clients = [], clientMap = {}
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const pendingVoiceSend = useRef(false);
+  const sendMessageRef = useRef(null);
 
   useEffect(() => {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Handle messages pushed from outside (e.g. Kit button on idea cards)
+  useEffect(() => {
+    if (!pendingMessage) return;
+    setOpen(true);
+    setInput(pendingMessage);
+    if (onPendingMessageConsumed) onPendingMessageConsumed();
+    // Small delay to let open state settle, then auto-send
+    setTimeout(() => {
+      if (sendMessageRef.current) sendMessageRef.current(pendingMessage);
+    }, 120);
+  }, [pendingMessage]);
 
   // Speech-to-text
   const toggleListening = () => {
@@ -3055,9 +3068,10 @@ RULES:
     }
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
-    const userMsg = { role: "user", content: input.trim() };
+  const handleSend = async (overrideText) => {
+    const textToSend = typeof overrideText === "string" ? overrideText : input.trim();
+    if (!textToSend || loading) return;
+    const userMsg = { role: "user", content: textToSend };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
@@ -3098,6 +3112,9 @@ RULES:
     }
     setLoading(false);
   };
+
+  // Register send function on ref so pendingMessage effect can call it
+  sendMessageRef.current = handleSend;
 
   // Auto-send after voice input finishes
   useEffect(() => {
@@ -3961,6 +3978,407 @@ const ClientsView = ({ clients, projects, onEdit, onSave, onDelete, onNew }) => 
   );
 };
 
+// ─── Ideas Module ─────────────────────────────────────────────────────────────
+
+const IDEA_CATEGORIES = ["Campaign", "Content", "Product", "Other"];
+const IDEA_STATUSES = [
+  { key: "raw", label: "Raw", color: "#808080" },
+  { key: "refined", label: "Refined", color: "#5B9BCF" },
+  { key: "approved", label: "Approved", color: "#7ACF85" },
+];
+
+const IdeaStatusPill = ({ status, onClick }) => {
+  const cfg = IDEA_STATUSES.find(s => s.key === status) || IDEA_STATUSES[0];
+  return (
+    <span
+      onClick={onClick ? (e) => { e.stopPropagation(); onClick(); } : undefined}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 5,
+        padding: "3px 10px",
+        background: `${cfg.color}22`,
+        border: `1px solid ${cfg.color}44`,
+        borderRadius: 20,
+        fontSize: 10, color: cfg.color, fontWeight: 600,
+        letterSpacing: "0.04em", textTransform: "uppercase",
+        cursor: onClick ? "pointer" : "default",
+        transition: "all 0.15s",
+        userSelect: "none",
+      }}
+    >
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
+      {cfg.label}
+    </span>
+  );
+};
+
+const IdeaModal = ({ idea, clients, onSave, onDelete, onClose, currentUserId }) => {
+  const isNew = !idea;
+  const [form, setForm] = useState(idea || {
+    id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+    title: "",
+    description: "",
+    category: "Campaign",
+    status: "raw",
+    client_id: null,
+    created_by: currentUserId,
+    created_at: new Date().toISOString(),
+  });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const update = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleSave = () => {
+    if (!form.title.trim()) return;
+    onSave(form);
+    onClose();
+  };
+
+  const inputStyle = {
+    background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`,
+    borderRadius: 6, padding: "8px 12px", color: COLORS.text,
+    fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box",
+  };
+  const labelStyle = {
+    fontSize: 11, color: COLORS.textMuted, fontWeight: 600,
+    letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6, display: "block",
+  };
+  const selectStyle = {
+    ...inputStyle, appearance: "none", cursor: "pointer",
+  };
+
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+      backdropFilter: "blur(8px)", display: "flex", alignItems: "center",
+      justifyContent: "center", zIndex: 1000, padding: 20,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: COLORS.surface, border: `1px solid ${COLORS.border}`,
+        borderRadius: 12, width: "100%", maxWidth: 520,
+        maxHeight: "90vh", overflow: "auto",
+        boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${COLORS.border}` }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: COLORS.text }}>
+            {isNew ? "New Idea" : "Edit Idea"}
+          </h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: COLORS.textMuted }}>
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+
+        <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <label style={labelStyle}>Title</label>
+            <input
+              value={form.title}
+              onChange={e => update("title", e.target.value)}
+              placeholder="What's the idea?"
+              autoFocus
+              style={{ ...inputStyle, fontSize: 15, fontWeight: 500, padding: "10px 12px" }}
+            />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Description</label>
+            <textarea
+              value={form.description || ""}
+              onChange={e => update("description", e.target.value)}
+              placeholder="Details, context, inspiration..."
+              rows={4}
+              style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }}
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Category</label>
+              <select value={form.category || "Campaign"} onChange={e => update("category", e.target.value)} style={selectStyle}>
+                {IDEA_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Status</label>
+              <select value={form.status || "raw"} onChange={e => update("status", e.target.value)} style={selectStyle}>
+                {IDEA_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {clients.length > 0 && (
+            <div>
+              <label style={labelStyle}>Client / Brand</label>
+              <select value={form.client_id || ""} onChange={e => update("client_id", e.target.value || null)} style={selectStyle}>
+                <option value="">No client</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, justifyContent: "space-between", marginTop: 4 }}>
+            {!isNew && (
+              <div>
+                {confirmDelete ? (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={() => { onDelete(form.id); onClose(); }}
+                      style={{ background: COLORS.danger, border: "none", borderRadius: 6, padding: "8px 14px", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      Confirm Delete
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      style={{ background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 14px", color: COLORS.textMuted, fontSize: 12, cursor: "pointer" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 14px", color: COLORS.danger, fontSize: 12, cursor: "pointer" }}
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            )}
+            {isNew && <div />}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={onClose} style={{ background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 18px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>
+                Cancel
+              </button>
+              <button onClick={handleSave} style={{ background: COLORS.accent, border: "none", borderRadius: 6, padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                {isNew ? "Save Idea" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const IdeaCard = ({ idea, clients, onEdit, onStatusCycle, onKitClick }) => {
+  const [hovered, setHovered] = useState(false);
+  const client = clients.find(c => c.id === idea.client_id);
+
+  const cycleStatus = () => {
+    const idx = IDEA_STATUSES.findIndex(s => s.key === idea.status);
+    const next = IDEA_STATUSES[(idx + 1) % IDEA_STATUSES.length];
+    onStatusCycle(idea.id, next.key);
+  };
+
+  const catColor = {
+    Campaign: COLORS.orange, Content: COLORS.purple,
+    Product: COLORS.blue, Other: COLORS.textDim,
+  }[idea.category] || COLORS.textDim;
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: hovered ? COLORS.surfaceHover : COLORS.surface,
+        border: `1px solid ${hovered ? COLORS.borderLight : COLORS.border}`,
+        borderRadius: 10, padding: 16, cursor: "pointer",
+        transition: "all 0.2s ease",
+        transform: hovered ? "translateY(-1px)" : "none",
+        boxShadow: hovered ? "0 4px 20px rgba(0,0,0,0.25)" : "none",
+        display: "flex", flexDirection: "column", gap: 10,
+      }}
+      onClick={() => onEdit(idea)}
+    >
+      {/* Top row: category + kit button */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{
+          fontSize: 10, fontWeight: 600, letterSpacing: "0.06em",
+          textTransform: "uppercase", color: catColor,
+          background: `${catColor}18`, padding: "2px 8px", borderRadius: 4,
+        }}>
+          {idea.category}
+        </span>
+        <button
+          onClick={e => { e.stopPropagation(); onKitClick(idea); }}
+          title="Ask Kit about this idea"
+          style={{
+            background: hovered ? `${COLORS.accent}18` : "transparent",
+            border: `1px solid ${hovered ? COLORS.accent + "44" : "transparent"}`,
+            borderRadius: 6, padding: "3px 8px", cursor: "pointer",
+            color: COLORS.accent, fontSize: 11, fontWeight: 600,
+            transition: "all 0.15s",
+          }}
+        >
+          ✦ Kit
+        </button>
+      </div>
+
+      {/* Title */}
+      <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: COLORS.text, lineHeight: 1.35 }}>
+        {idea.title}
+      </h3>
+
+      {/* Description */}
+      {idea.description && (
+        <p style={{
+          margin: 0, fontSize: 12, color: COLORS.textMuted, lineHeight: 1.55,
+          display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+        }}>
+          {idea.description}
+        </p>
+      )}
+
+      {/* Footer: client badge + status pill */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>
+        {client ? (
+          <span style={{
+            fontSize: 10, color: COLORS.blue, background: `${COLORS.blue}15`,
+            padding: "2px 7px", borderRadius: 4, border: `1px solid ${COLORS.blue}30`,
+            fontWeight: 500,
+          }}>
+            {client.name}
+          </span>
+        ) : <span />}
+        <IdeaStatusPill status={idea.status} onClick={cycleStatus} />
+      </div>
+    </div>
+  );
+};
+
+const IdeasModule = ({ ideas, clients, saveIdea, deleteIdea, currentUserId, onKitMessage }) => {
+  const [editingIdea, setEditingIdea] = useState(null);
+  const [showNew, setShowNew] = useState(false);
+  const [catFilter, setCatFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const filtered = ideas.filter(idea => {
+    if (catFilter !== "all" && idea.category !== catFilter) return false;
+    if (statusFilter !== "all" && idea.status !== statusFilter) return false;
+    return true;
+  });
+
+  const handleStatusCycle = async (id, newStatus) => {
+    const idea = ideas.find(i => i.id === id);
+    if (!idea) return;
+    await saveIdea({ ...idea, status: newStatus }, currentUserId);
+  };
+
+  const handleKitClick = (idea) => {
+    const client = clients.find(c => c.id === idea.client_id);
+    const msg = `I want to develop this idea further: "${idea.title}"${idea.description ? ` — ${idea.description}` : ""}${client ? ` (for ${client.name})` : ""}. Help me refine it and suggest next steps.`;
+    if (onKitMessage) onKitMessage(msg);
+  };
+
+  const btnStyle = (active) => ({
+    background: active ? COLORS.surfaceActive : "transparent",
+    border: `1px solid ${active ? COLORS.borderLight : "transparent"}`,
+    borderRadius: 6, padding: "5px 12px", cursor: "pointer",
+    color: active ? COLORS.text : COLORS.textMuted,
+    fontSize: 12, fontWeight: active ? 600 : 400,
+    transition: "all 0.15s",
+  });
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.text }}>Ideas</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: COLORS.textMuted }}>
+            {ideas.length} idea{ideas.length !== 1 ? "s" : ""} · {filtered.length} shown
+          </p>
+        </div>
+        <button
+          onClick={() => setShowNew(true)}
+          style={{
+            background: COLORS.accent, border: "none", borderRadius: 7,
+            padding: "8px 16px", color: COLORS.bg, fontSize: 13, fontWeight: 600,
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+          }}
+        >
+          <Icon name="plus" size={14} color={COLORS.bg} />
+          New Idea
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+        {/* Category filters */}
+        <div style={{ display: "flex", gap: 3, background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 7, padding: 3 }}>
+          <button style={btnStyle(catFilter === "all")} onClick={() => setCatFilter("all")}>All</button>
+          {IDEA_CATEGORIES.map(c => (
+            <button key={c} style={btnStyle(catFilter === c)} onClick={() => setCatFilter(c)}>{c}</button>
+          ))}
+        </div>
+
+        <div style={{ width: 1, background: COLORS.border, margin: "0 4px" }} />
+
+        {/* Status filters */}
+        <div style={{ display: "flex", gap: 3, background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 7, padding: 3 }}>
+          <button style={btnStyle(statusFilter === "all")} onClick={() => setStatusFilter("all")}>All Status</button>
+          {IDEA_STATUSES.map(s => (
+            <button key={s.key} style={btnStyle(statusFilter === s.key)} onClick={() => setStatusFilter(s.key)}>{s.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid */}
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 20px", color: COLORS.textDim }}>
+          <p style={{ fontSize: 14, marginBottom: 8 }}>{ideas.length === 0 ? "No ideas yet" : "No ideas match your filters"}</p>
+          {ideas.length === 0 && (
+            <button
+              onClick={() => setShowNew(true)}
+              style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 18px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}
+            >
+              Capture your first idea
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          gap: 14,
+        }}>
+          {filtered.map(idea => (
+            <IdeaCard
+              key={idea.id}
+              idea={idea}
+              clients={clients}
+              onEdit={setEditingIdea}
+              onStatusCycle={handleStatusCycle}
+              onKitClick={handleKitClick}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Modals */}
+      {showNew && (
+        <IdeaModal
+          idea={null}
+          clients={clients}
+          onSave={(idea) => saveIdea(idea, currentUserId)}
+          onDelete={deleteIdea}
+          onClose={() => setShowNew(false)}
+          currentUserId={currentUserId}
+        />
+      )}
+      {editingIdea && (
+        <IdeaModal
+          idea={editingIdea}
+          clients={clients}
+          onSave={(idea) => saveIdea(idea, currentUserId)}
+          onDelete={deleteIdea}
+          onClose={() => setEditingIdea(null)}
+          currentUserId={currentUserId}
+        />
+      )}
+    </div>
+  );
+};
+
 // ─── Main App ────────────────────────────────────────────────────────────────
 function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { projects, loading, saveProject, deleteProject } = useProjects();
@@ -3969,6 +4387,8 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { docs, loading: docsLoading, saveDoc, deleteDoc } = useDocs();
   const { clients, saveClient, deleteClient } = useClients();
   const { services, saveService, deleteService } = useServices();
+  const { ideas, saveIdea, deleteIdea } = useIdeas();
+  const [kitPendingMessage, setKitPendingMessage] = useState(null);
   const [editingService, setEditingService] = useState(null);
   const [showNewService, setShowNewService] = useState(false);
   const { notifications, unreadCount, markAllRead } = useNotifications(currentUserId);
@@ -4170,7 +4590,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           <img src={LOGO_SRC} alt="creatly" style={{ height: 26, objectFit: "contain" }} />
           {/* Module tabs */}
           <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }, { key: "clients", label: "Clients" }, { key: "services", label: "Services" }].map((m) => (
+            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }, { key: "clients", label: "Clients" }, { key: "services", label: "Services" }, { key: "ideas", label: "Ideas" }].map((m) => (
               <button
                 key={m.key}
                 onClick={() => setModule(m.key)}
@@ -4513,6 +4933,17 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
             showToast={showToast}
           />
         )}
+
+        {module === "ideas" && (
+          <IdeasModule
+            ideas={ideas}
+            clients={clients}
+            saveIdea={saveIdea}
+            deleteIdea={deleteIdea}
+            currentUserId={currentUserId}
+            onKitMessage={(msg) => setKitPendingMessage(msg)}
+          />
+        )}
       </main>
 
       {/* Project Modal (new projects only) */}
@@ -4627,6 +5058,8 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         currentUserId={currentUserId}
         onOpenProject={(p) => setDetailProject(p)}
         showToast={showToast}
+        pendingMessage={kitPendingMessage}
+        onPendingMessageConsumed={() => setKitPendingMessage(null)}
       />
 
       {/* Toast notification */}
