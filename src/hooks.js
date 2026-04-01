@@ -512,15 +512,3 @@ export function useServices() {
 
   return { services, loading, saveService, deleteService }
 }
-
-export function useIdeas() {
-  const [ideas, setIdeas] = React.useState([]);
-  const fetch = async () => {
-    const {data} = await supabase.from('ideas').select('*').order('created_at',{ascending:false});
-    if(data) setIdeas(data);
-  };
-  React.useEffect(()=>{ fetch(); const ch=supabase.channel('ideas-rt').on('postgres_changes',{event:'*',schema:'public',table:'ideas'},fetch).subscribe(); return ()=>supabase.removeChannel(ch); },[]);
-  const saveIdea = async(idea)=>{ const row={id:idea.id||crypto.randomUUID(),title:idea.title||'',description:idea.description||'',status:idea.status||'inbox',category:idea.category||'other',assigned_to:idea.assigned_to||null,created_by:idea.created_by||null,created_at:idea.created_at||new Date().toISOString(),updated_at:new Date().toISOString()}; await supabase.from('ideas').upsert(row); return row; };
-  const deleteIdea = async(id)=>{ await supabase.from('ideas').delete().eq('id',id); };
-  return {ideas,saveIdea,deleteIdea};
-}
