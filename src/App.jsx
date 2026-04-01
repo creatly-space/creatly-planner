@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications, useServices } from "./hooks";
+import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications, useServices, useIdeas } from "./hooks";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
