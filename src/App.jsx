@@ -4570,281 +4570,44 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Top Bar */}
-      <header
-        className="creatly-header"
-        style={{
-          padding: "14px 24px",
-          borderBottom: `1px solid ${COLORS.border}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          flexWrap: "wrap",
-          background: COLORS.surface,
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <img src={LOGO_SRC} alt="creatly" style={{ height: 26, objectFit: "contain" }} />
-          {/* Module tabs */}
-          <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }, { key: "clients", label: "Clients" }, { key: "services", label: "Services" }, { key: "ideas", label: "Ideas" }].map((m) => (
-              <button
-                key={m.key}
-                onClick={() => setModule(m.key)}
-                style={{
-                  background: module === m.key ? COLORS.bg : "transparent",
-                  border: "none", padding: "6px 14px", cursor: "pointer",
-                  color: module === m.key ? COLORS.accent : COLORS.textDim,
-                  fontSize: 12, fontWeight: module === m.key ? 600 : 400, transition: "all 0.15s",
-                }}
-              >
-                {m.label}
+        {/* Sidebar nav */}
+        <div style={{
+          width: 68, flexShrink: 0, background: COLORS.surface,
+          borderRight: `0.5px solid ${COLORS.border}`,
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "20px 0", position: "fixed", left: 0, top: 0, bottom: 0, zIndex: 100,
+        }}>
+          <div style={{ width: 38, height: 38, background: COLORS.accent, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 28, flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+              <rect x="1" y="1" width="6" height="6" rx="2" fill="#0a2e0f"/>
+              <rect x="9" y="1" width="6" height="6" rx="2" fill="#0a2e0f"/>
+              <rect x="1" y="9" width="6" height="6" rx="2" fill="#0a2e0f"/>
+              <rect x="9" y="9" width="6" height="6" rx="2" fill="#0a2e0f" opacity="0.4"/>
+            </svg>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, width: "100%", padding: "0 10px" }}>
+            {[
+              { key: "home", label: "Home", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="7" height="7" rx="2" fill="currentColor"/><rect x="11" y="2" width="7" height="7" rx="2" fill="currentColor"/><rect x="2" y="11" width="7" height="7" rx="2" fill="currentColor"/><rect x="11" y="11" width="7" height="7" rx="2" fill="currentColor" opacity="0.4"/></svg> },
+              { key: "planner", label: "Planner", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="5" width="16" height="2" rx="1" fill="currentColor"/><rect x="2" y="9" width="16" height="2" rx="1" fill="currentColor"/><rect x="2" y="13" width="10" height="2" rx="1" fill="currentColor"/></svg> },
+              { key: "docs", label: "Docs", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14v10H3z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 17h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { key: "clients", label: "Clients", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.5"/><path d="M3 17c0-3.866 3.134-6 7-6s7 2.134 7 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { key: "services", label: "Services", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5"/><path d="M10 6v8M6 10h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { key: "ideas", label: "Ideas", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.5 5 5.5.8-4 3.9.9 5.5L10 14.5l-4.9 2.7.9-5.5L2 7.8 7.5 7z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
+            ].map((m) => (
+              <button key={m.key} onClick={() => setModule(m.key)} title={m.label} style={{ width: "100%", aspectRatio: "1", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "none", background: module === m.key ? "rgba(122,207,133,0.15)" : "transparent", color: module === m.key ? COLORS.accent : COLORS.textDim, transition: "all 0.15s" }}>
+                {m.icon}
               </button>
             ))}
           </div>
-        </div>
-
-        {module === "planner" && <div className="creatly-header-search" style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, maxWidth: 500 }}>
-          {/* Search */}
-          <div style={{ position: "relative", flex: 1 }}>
-            <Icon name="search" size={14} color={COLORS.textDim} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search projects..."
-              style={{
-                width: "100%",
-                background: COLORS.surfaceActive,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 6,
-                padding: "7px 10px 7px 32px",
-                color: COLORS.text,
-                fontSize: 13,
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-
-          {/* Filter */}
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={{
-              background: COLORS.surfaceActive,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 6,
-              padding: "7px 10px",
-              color: COLORS.textMuted,
-              fontSize: 12,
-              outline: "none",
-              appearance: "none",
-              cursor: "pointer",
-            }}
-          >
-            <option value="all">All Status</option>
-            {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-              <option key={k} value={k}>{v.label}</option>
-            ))}
-          </select>
-        </div>}
-
-        <div className="creatly-header-actions" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {/* Notification Bell */}
-          <div style={{ position: "relative" }} data-notif-panel="true">
-            <button
-              onClick={() => { setShowNotifications(v => !v); if (!showNotifications) markAllRead(); }}
-              style={{
-                background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`,
-                borderRadius: 6, padding: "7px 10px", cursor: "pointer",
-                color: COLORS.textMuted, fontSize: 15, lineHeight: 1, position: "relative",
-              }}
-              title="Notifications"
-            >
-              🔔
-              {unreadCount > 0 && (
-                <span style={{
-                  position: "absolute", top: 3, right: 3, width: 8, height: 8,
-                  borderRadius: "50%", background: COLORS.accent, display: "block",
-                }} />
-              )}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "14px 10px 0", borderTop: `0.5px solid ${COLORS.border}`, width: "100%" }}>
+            <button onClick={() => setKitOpen(v => !v)} style={{ width: 38, height: 38, background: COLORS.accent, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "none" }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v8H2zM6 14h4" stroke="#0a2e0f" strokeWidth="1.5" strokeLinecap="round"/></svg>
             </button>
-            {showNotifications && (
-              <div
-                onClick={e => e.stopPropagation()}
-                style={{
-                  position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 500,
-                  background: COLORS.surface, border: `1px solid ${COLORS.border}`,
-                  borderRadius: 10, width: 320, maxHeight: 400, overflow: "auto",
-                  boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
-                }}
-              >
-                <div style={{ padding: "12px 16px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Notifications</span>
-                  <button onClick={() => setShowNotifications(false)} style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", fontSize: 16 }}>×</button>
-                </div>
-                {notifications.length === 0 ? (
-                  <div style={{ padding: "32px 16px", textAlign: "center", color: COLORS.textDim, fontSize: 13 }}>No notifications yet</div>
-                ) : (
-                  notifications.map(n => (
-                    <div
-                      key={n.id}
-                      onClick={() => { if (n.type === "intake") setModule("clients"); setShowNotifications(false); }}
-                      style={{
-                        padding: "12px 16px", borderBottom: `1px solid ${COLORS.border}`,
-                        cursor: n.type === "intake" ? "pointer" : "default",
-                        background: n[`read_${currentUserId}`] ? "transparent" : `${COLORS.accent}08`,
-                        transition: "background 0.15s",
-                      }}
-                      onMouseEnter={e => { if (n.type === "intake") e.currentTarget.style.background = COLORS.surfaceHover; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = n[`read_${currentUserId}`] ? "transparent" : `${COLORS.accent}08`; }}
-                    >
-                      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <span style={{ fontSize: 16, flexShrink: 0 }}>{n.type === "intake" ? "📋" : "🔄"}</span>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginBottom: 2 }}>{n.title}</div>
-                          {n.body && <div style={{ fontSize: 12, color: COLORS.textMuted }}>{n.body}</div>}
-                          <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>
-                            {new Date(n.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                          </div>
-                        </div>
-                        {!n[`read_${currentUserId}`] && (
-                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS.accent, flexShrink: 0, marginTop: 4 }} />
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+            <div onClick={onLogout} style={{ width: 38, height: 38, borderRadius: "50%", background: COLORS.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, color: "#0a2e0f", cursor: "pointer" }}>
+              {currentUser === "ludvig" ? "L" : "J"}
+            </div>
           </div>
-
-          {/* User indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}` }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.accent }} />
-            <span style={{ fontSize: 11, color: COLORS.textMuted, fontWeight: 500 }}>{currentUser.name}</span>
-            <button
-              onClick={onLogout}
-              style={{ background: "none", border: "none", color: COLORS.textDim, fontSize: 11, cursor: "pointer", padding: "0 0 0 4px" }}
-              title="Sign out"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Theme Toggle - always visible */}
-          <button
-            onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
-            style={{
-              background: COLORS.surfaceActive,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 6,
-              padding: "7px 10px",
-              cursor: "pointer",
-              color: COLORS.textMuted,
-              fontSize: 14,
-              lineHeight: 1,
-            }}
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {theme === "dark" ? "☀️" : "🌙"}
-          </button>
-
-          {/* Planner-only buttons */}
-          {module === "planner" && (
-            <>
-              {/* View toggles */}
-              <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-                {viewButtons.map((v) => (
-                  <button
-                    key={v.key}
-                    onClick={() => setView(v.key)}
-                    style={{
-                      background: view === v.key ? COLORS.bg : "transparent",
-                      border: "none",
-                      padding: "6px 12px",
-                      cursor: "pointer",
-                      color: view === v.key ? COLORS.accent : COLORS.textDim,
-                      fontSize: 11,
-                      fontWeight: view === v.key ? 600 : 400,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    <Icon name={v.icon} size={13} color={view === v.key ? COLORS.accent : COLORS.textDim} />
-                    {v.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tag Colors */}
-              <button
-                onClick={() => setShowTagManager(true)}
-                style={{
-                  background: COLORS.surfaceActive,
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: 6,
-                  padding: "7px 10px",
-                  cursor: "pointer",
-                  color: COLORS.textMuted,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 12,
-                }}
-              >
-                Tags
-              </button>
-
-              {/* Field Settings */}
-              <button
-                onClick={() => setShowFieldSettings(true)}
-                style={{
-                  background: COLORS.surfaceActive,
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: 6,
-                  padding: "7px 10px",
-                  cursor: "pointer",
-                  color: COLORS.textMuted,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 12,
-                }}
-              >
-                <Icon name="filter" size={13} color={COLORS.textMuted} />
-                Fields
-              </button>
-
-              {/* New Project */}
-              <button
-                onClick={() => setModal("new")}
-                style={{
-                  background: COLORS.accent,
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "7px 14px",
-                  color: COLORS.bg,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                }}
-              >
-                <Icon name="plus" size={14} color={COLORS.bg} />
-                New
-              </button>
-            </>
-          )}
         </div>
-      </header>
 
       {/* Content */}
       <main style={{ padding: 24, maxWidth: module === "planner" && view === "timeline" && !detailProject ? "none" : 1400, margin: "0 auto" }}>
