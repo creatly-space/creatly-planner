@@ -4381,6 +4381,12 @@ const IdeasModule = ({ ideas, clients, saveIdea, deleteIdea, currentUserId, onKi
 
 // ─── Main App ────────────────────────────────────────────────────────────────
 function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 768);
+  React.useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
   const { projects, loading, saveProject, deleteProject } = useProjects();
   const { tagColors, updateTagColor: handleUpdateTagColor } = useTagColors();
   const { visibleFields, setVisibleFields, customFieldDefs: customFields, setCustomFieldDefs: setCustomFields } = useAppSettings();
