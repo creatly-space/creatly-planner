@@ -4571,7 +4571,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
 
       {/* Top Bar */}
         {/* Sidebar nav */}
-        <div style={{
+        <div className="creatly-sidebar" style={{
           width: 68, flexShrink: 0, background: COLORS.surface,
           borderRight: `0.5px solid ${COLORS.border}`,
           display: "flex", flexDirection: "column", alignItems: "center",
@@ -4606,6 +4606,16 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
 
       {/* Content */}
       <main style={{ padding: 24, maxWidth: module === "planner" && view === "timeline" && !detailProject ? "none" : 1400, margin: "0 auto" }}>
+        
+        {/* Mobile bottom nav */}
+        <div className="creatly-mobile-nav" style={{ display: "none", position: "fixed", bottom: 0, left: 0, right: 0, background: COLORS.surface, borderTop: `0.5px solid ${COLORS.border}`, zIndex: 100, padding: "10px 0 20px", justifyContent: "space-around", alignItems: "center" }}>
+          {[{key:"home",label:"Home"},{key:"planner",label:"Planner"},{key:"docs",label:"Docs"},{key:"clients",label:"Clients"},{key:"ideas",label:"Ideas"}].map((m) => (
+            <button key={m.key} onClick={() => setModule(m.key)} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, background:"none", border:"none", cursor:"pointer", padding:"4px 10px", color: module === m.key ? COLORS.accent : COLORS.textDim }}>
+              <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="7" height="7" rx="2" fill="currentColor" opacity={module===m.key?1:0.5}/></svg>
+              <span style={{ fontSize:10, fontWeight: module===m.key ? 600:400 }}>{m.label}</span>
+            </button>
+          ))}
+        </div>
         {/* Dashboard */}
         {module === "home" && (
           <DashboardView
