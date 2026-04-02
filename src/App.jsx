@@ -4578,12 +4578,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           padding: "20px 0", position: "fixed", left: 0, top: 0, bottom: 0, zIndex: 100,
         }}>
           <div style={{ width: 38, height: 38, background: COLORS.accent, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 28, flexShrink: 0 }}>
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="1" width="6" height="6" rx="2" fill="#0a2e0f"/>
-              <rect x="9" y="1" width="6" height="6" rx="2" fill="#0a2e0f"/>
-              <rect x="1" y="9" width="6" height="6" rx="2" fill="#0a2e0f"/>
-              <rect x="9" y="9" width="6" height="6" rx="2" fill="#0a2e0f" opacity="0.4"/>
-            </svg>
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M17 7C15.5 4.5 12.9 3 10 3C5.6 3 2 6.6 2 11C2 15.4 5.6 19 10 19C12.9 19 15.5 17.5 17 15" stroke="#0a2e0f" strokeWidth="3.5" strokeLinecap="round"/></svg>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, width: "100%", padding: "0 10px" }}>
             {[
