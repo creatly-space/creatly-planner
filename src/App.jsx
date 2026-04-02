@@ -6,19 +6,19 @@ import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClient
 const LOGO_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAA+CAYAAABuk1SaAAAWV0lEQVR42u2debRfVXXHP/s3vExkIIGEAAXMQhAUwamCCKLLolYsihS7ChVroQ7YWhasqgUtFNSlFWICtFBLabUocxlcWFlY7XJAmRQqopbKoAQCgQwvycvL+/1+u3/c78k7ud7p93vvQULuWeuu95J3h3322fPeZx+jHvWY4uHuDTPrufuBwNXAGGCp27rAfODzZnapuzfNrPt8w96ql68eBYRtQKPsNjPrvVBxUDNIPXKHmbkk+w47agapR6bmMDN3992A9+UwSQ+YATxoZteHZ2oGqccOoTwABxYCpwGbc3yGecAtwPXRMzWD1GOHGR3g2QIG6QDDtYlVjx1ZkzR1WQ79NF7ICGjUNFCPetQMUo961AxSj3pscz6IkknjRusLMNS3Lc1xR8D3dssgqcyqm1kva4HcvRE5db1+FzFNBJneY/Z3LceZpJ9sbxX4o3tcuPApYoYtczKzbsG8t1qXCeLZinCZB2fR+yZDGFShgcmms1YfBBOIrJv6WxuYRRLyGzWzsfQCuXuzn4UbgKEayWPWZcBYfCAyEWEa/hYwXfjaUDDH3mQwSgxLej7C95CuDUAnvS6BYMvwXQBrV+/pVAG3QsZ9kGy8T7V2rPL+VgXC20LY7r4QOAQ4ObAvSSJpBrATSQHaJncfBp4EHgJ+DNxnZsOp93nJd2dJInqONOqY2Uh4ZwTfNGBXYE7Kz9pgZg8XfC8UxnVFXC8DXg0cCOwBzNU828B6dx8BngB+AdwF3Gtmo6l3DcocMSxDwMHAq4D9gN01t2m61gOj7v4s8Ahwv2B5NHmVWxEhuPt0zckzfNMeMLsMXKDt7jtFz+T5uuv7REVb8/cCrbTJzMYmgOuZJCHsXHq0CguFux8BHAccCuyil3Z0BekR1HxDjNcU0zwO/BdwlZk9lCbqWOqpvKEFfAXYCxhNwdiTtrrHzE4LMLr7wcAfi3kXSNqH+2eKSd+dp2L13dnAHwLvAF6s53qaY1e/u+YVz3Ez8DBwK/A1M1tVRphFZoqqXncG3gMcC+wjZsiDJeQqgrBbA9wDfMXMvpuF7whv5wBvB9bqHenRLGES0/w3VBDEJwinN2esa9Ay84ELzOwSd38LcH4ObF1gZ+DTZnbDIEJJwvrLwBJgJCNg5UCrVUA0XXc/BDhdjNEANgrgGEGW8WKP/r4r8H7geHe/DlhmZsMlk5ovRsxikJ2AeVr0rrt/QDC2gE0ios3R/a0sFZ/SPMcDHxYxboqurDl2Mua4l2B4j7tfbGZXxUxfhTl0n7v7CSTlHb+jhdsYEWAeLEQ/W8BRwFHufruI6PEcfM/R+rRzGKTMdHKZejMqMEizT/N3WgFsgZlmMLGxs+isGoPEC+ruHwE+JAAN9UAjB5FFWmkMeEZI+jPg9e5+ppn9tIBJxqIrzSBjwe529+OAs4BVQlozRUSZjma0P2E28GngGBHiM5EWbPYxx1E9Pwf4rLsfCpxtZuuztGWO5pwBnCsttl6wNCkPxWcJqHX6/WjgYHf/SzO7JwOWToTn3oAOtuv5snv69Se8ALZuCcxVRzz/LAbxRlpzuPs0d18KnKmFXxcRzCDRCIvU/ypgb+Ar7v5GaYBmzjN5lwMzpN0+Ivhc37AK0jowx0KZcseIGDczeOlEmGNHczwWuNzd5+pbVhL9aQEXyexapQVrDYjvYBo1gdUkBYVfcveXCZZGRTxbH9+frPf0+94J++llVyMjnHih/I2nIvu2jNN7kV3sJap2g35e5O6vFJNUJcqGTJ/9gK/K59hclagjITAbuEzO+KoSYgzz66bs/yJGeVpO/sVyNPNCoEGinw28GVhZQphFZoqqXncG3gMcC+wjZsiDJeQqgrBbA9wDfMXMvpuF7whv5wBvB9bqHenRLGES0/w3VBDEJwinN2esa9Ay84ELzOwSd38LcH4ObF1gZ+DTZnbDIEJJwvrLwBJgJCNg5UCrVUA0XXc/BDhdjNEANgrgGEGW8WKP/r4r8H7geHe/DlhmZsMlk5ovRsxikJ2AeVr0rrt/QDC2gE0ios3R/a0sFZ/SPMcDHxYxboqurDl2Mua4l2B4j7tfbGZXxUxfhTl0n7v7CSTlHb+jhdsYEWAeLEQ/W8BRwFHufruI6PEcfM/R+rRzGKTMdHKZejMqMEizT/N3WgFsgZlmMLGxs+isGoPEC+ruHwE+JAAN9UAjB5FFWmkMeEZI+jPg9e5+ppn9tIBJxqIrzSBjwe529+OAs4BVQlozRUSZjma0P2E28GngGBHiM5EWbPYxx1E9Pwf4rLsfCpxtZuuztGWO5pwBnCsttl6wNCkPxWcJqHX6/WjgYHf/SzO7JwOWToTn3oAOtuv5snv69Se8ALZuCcxVRzz/LAbxRlpzuPs0d18KnKmFXxcRzCDRCIvU/ypgb+Ar7v5GaYBmzjN5lwMzpN0+Ivhc37AK0jowx0KZcseIGDczeOlEmGNHczwWuNzd5+pbVhL9aQEXyexapQVrDYjvYBo1gdUkBYVfcveXCZZGRTxbH9+frPf0+94J++llVyMjnHih/I2nIvu2jNN7kV3sJap2g35e5O6vFJNUJcqGTJ/9gK/K59hclagjITAbuEzO+KoSYgzz66bs/yJGeVpO/sVyNPNCoEGinw28GVhZQphFZoqqXncG3gMcC+wjZsiDJeQqgrBbA9wDfMXMvpuF7whv5wBvB9bqHenRLGES0/w3VBDEJwinN2esa9Ay84ELzOwSd38LcH4ObF1gZ+DTZnbDIEJJwvrLwBJgJCNg5UCrVUA0XXc/BDhdjNEANgrgGEGW8WKP/r4r8H7geHe/DlhmZsMlk5ovRsxikJ2AeVr0rrt/QDC2gE0ios3R/a0sFZ/SPMcDHxYxboqurDl2Mua4l2B4j7tfbGZXxUxfhTl0n7v7CSTlHb+jhdsYEWAeLEQ/W8BRwFHufruI6PEcfM/R+rRzGKTMdHKZejMqMEizT/N3WgFsgZlmMLGxs+isGoPEC+ruHwE+JAAN9UAjB5FFWmkMeEZI+jPg9e5+ppn9tIBJxqIrzSBjwe529+OAs4BVQlozRUSZjma0P2E28GngGBHiM5EWbPYxx1E9Pwf4rLsfCpxtZuuztGWO5pwBnCsttl6wNCkPxWcJqHX6/WjgYHf/SzO7JwOWToTn3oAOtuv5snv69Se8ALZuCcxVRzz/LAbxRlpzuPs0d18KnKmFXxcRzCDRCIvU/ypgb+Ar7v5GaYBmzjN5lwMzpN0+Ivhc37AK0jowx0KZcseIGDczeOlEmGNHczwWuNzd5+pbVhL9aQEXyexapQVrDYjvYBo1gdUkBYVfcveXCZZGRTxbH9+frPf0+94J++llVyMjnHih/I2nIvu2jNN7kV3sJap2g35e5O6vFJNUJcqGTJ/9gK/K59hclagjITAbuEzO+KoSYwzx66TsvyJGeVpO/cVyNPNCr0mSoZ0NvB1YXUKaRWaKql53Bt4DHAPsJWbIgyXkKoKwWwPcA3zFzP4rC98RXs8B3gGs1fvTU1nCJKb5b6ggiEkQTm/OWNegZeYDF5jZJe7+FuD8HNi6wM7Ap83shkGEkoT1l4ElwEhGwMqBVquA6Lrufghwuhijoe8QwDGCLOPFHv19V+D9wPHufh2wzMyGSyY1X4yYxSA7AfO06F13/4BgbAGbRESbo/tbWSo+pXmOBz4sYtwUXVlz7GTMcS/B8B53v9jMroqZvgpz6D539xNIyjt+Rwu3MSLAPFCI/m8BRwFHufvtIqLHc/A9R+vTzmGQMtPJZerNqMAg/Wd3v88RJNUATVIB8PVHLwA9aGYXSJMuMrPV7v4y4G8E2BZ0/Y1+3wh8z92PlVkwI6pU7UTIfE3S/fNm9h/u/gHgi5J84cjTVoKrnQ+zyOzzHzCze4oKJYTfVWZ2nzTHn0fnY00U4vMA12bPNLNHK1q44z1NZDX1YCHGtV4Y/8HMHnL39yk5tqvMB3efT8YpW+7+SZJk3oYKjNT0DM8jY32Mu68xs/XhJk3Y3V9G0nkxr+D3IQl8n0Jxf8sknx2fBSHs7u77F0ikGe7+YvnBf2hmT5O0YQ0y8h8yaJB2Hj2mmtljJHu83mdm33L3j5EUkQ3LPGK8f1Td+j2C0FJ5qZg0SQx8ATjdzFb2YBpj644GFl5o1oHqDY48vNHdV0jl7kzSFzwk8v4FuAK42Mz+VmF3j+mJPCiabr4apCUT8JvufraZXVDGIGWSPeRkr0wf2tOYxCD3SPKcK3uqiCAWAL+SWXlmlCDeqMgOkfYB/Bk5uqjXYjnpVe5+nxJE9Jh1VknUO9z98pDnqrKBi/RN7wrPd2v63Mx+4e5LNK87Sbq+N6rZFKRbR/P2rGYCJJIXS4InfBmSDSqb5J8WA46g+X8CON/MvqMIzcdJ2l0VbUa0liTjtYqkZ5rn4O0i4/8rFNUKZv2hBfDl7VYNKJinbr6cIf1fKf9lKckBnCMVJ3QaMstCqUNqjVUDoIQLcByxIwT6Y5WCjkQ/FDPcrHPlCWGBcQJIYLZ3kfgvkT+1r7T5b4P+p6uY+wQK3w+J85xkRhH8R+TUdxrv2cT0L2B2VPuhd7r7B4BflFO+FLhcjBLXUXQyhNSj0t7dPdeJUVVIQaxR+y9OSH8nWOkqe7TGo/J7l+qfT+x3Hy5mwnkQlV2tOgQcRZlBnKIz5X2UMQ+bhZ+X0JhRi7AJAIr8pbf5XbECCqRW8l3QhVzMVEPIYXfPaWKHjX1P2O0dz+YpAF1lSKNdfr/WMnOPO2Y1xCvC1uPZdBfqJfjz/p5PqEY+K78m2N58A2pHLmLyuwCfYJpvCu+3/P+vRYZ5B87v5ORV6ezYKl0CDnM16lHSK+u0mhTd35h8TBrYcwjKgX4dqDPsaF6XmW7JuZCqbGzAn/0OYk8g0a7r6BHlLFWkv0PcNh3vUeLNqYrSO8ItKwEvPMvxWJ/Gu0dLk2PBkJDIffaAfJkV5yj8zp/SrZHQ8wk3V1HkHGi1Y8nuzN2APxqXj/H3p0j4D/2PD7k/T5E0dzzVFIvhP5SfLcThZ8Eqf1OAP4D+IFCO1YBrvDNktwPARcCPzKzR8JZG1OpWQYp8XiepC1EWMfRygWIa7Jy2RP0DH+q6M3yvniV2Uqvuvu7IhOjk8PoC4EvVdAeTfkDNwN3irEfr5gQ+9DdD9ai/UT4viYHl6cC/6Mk4tIcwt5EVh7kYsGWx+ij0fctI2moUQWf+6QLllTbZNWFpjZgZpcofLoP8Mmq+auDtcBj2h4c/n8G4fRP/f8Hyu6qIf57oZPOmFgd4z1F8ZaS7KAYLiqhyWh+sMrMbgcec/fPlxVo1gxSj3pMJIPUox49qCe7v0RRoPisTHd/qZm1awapxw7BIGFX35GSSu75kRBqkRyitAlYZWbPUDNIPXYYBokOVG8AN5pZM/q9CSwzs+vkV9QMUo8dZYSm0U8DX0y1wgqdCu8JDV5qBqnH9qRJ2rlmVsAg+0VarUE9/V2PemwPKkRRLYuScXeV3B6c3RG59z0UgfKJZJApIQTf6oSY5d+R7NoLEd2qMNqr5Fk3BrieZ+d+6LVjE0lFyyKCmyjYd0ePa/k2f1Iyv0f07oEUyjP5LlWG5hFP4/p4dFSh3RJVATrSpLyh2gd9oveLyWpTi++uFYR7Jh0JmMypz0JCJeR1MkFBq4/NbOfVCHqhGdwi8TjW6LnO2UE2CtIymCqWJypqQ5oo4B54m5gw98L3AvzxGAeS9lTT5CUuX1qhQmSnDiCIzW1FUdOMp6XAqSaPHG0KnEtV+tZXkxN190Xey/u1G8CJ3/6S+Wy8YONZEG8Z9e5c5+UkZ5WjPO9x9Zy3I5mgB7gLOMLO7+zj0s9S+5AkkCYH1VpyR9kXQ22U2XLXZGY+KfnRFnJH2jEK9a4GvZzBIMHWPJskW31X27jXAr0uSg+1kG+5TCjhVPWnzZJJTttZE4euJ8Eaap9j2W0R2uYzw2UwCfiAT9N8b0f5eV2L3iPYqV1Y4txfB0FDYO1HCJKzpbOBsdz+UpDnAJpmZ/wMJ9U8hNnEW5QAAAABJRU5ErkJggg==";
 
 const DARK_THEME = {
-  bg: "#0A0A0A",
-  surface: "#151515",
-  surfaceHover: "#1C1C1C",
-  surfaceActive: "#242424",
-  border: "#2C2C2C",
-  borderLight: "#3A3A3A",
-  text: "#F0F0F0",
-  textMuted: "#A0A0A0",
-  textDim: "#707070",
+  bg: "#111318",
+  surface: "#161920",
+  surfaceHover: "#1a1d24",
+  surfaceActive: "#1e2230",
+  border: "#1e2028",
+  borderLight: "#252830",
+  text: "#eef0f5",
+  textMuted: "#9099b0",
+  textDim: "#4a5270",
   accent: "#7ACF85",
   accentDim: "#5BB866",
   accentGlow: "rgba(122,207,133,0.08)",
-  danger: "#CF5C5C",
+  danger: "#e05a5a",
   success: "#7ACF85",
   blue: "#5B9BCF",
   purple: "#9B7ADB",
@@ -4530,7 +4530,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   if (loading || docsLoading) {
     return (
       <div style={{ minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ color: COLORS.accent, fontSize: 16, fontFamily: "'DM Sans', sans-serif" }}>Loading...</div>
+        <div style={{ color: COLORS.accent, fontSize: 16, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Loading...</div>
       </div>
     );
   }
@@ -4541,7 +4541,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         minHeight: "100vh",
         background: COLORS.bg,
         color: COLORS.text,
-        fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
       }}
     >
       <style>{`
@@ -5124,7 +5124,7 @@ function UserGate({ children }) {
   return (
     <div style={{
       minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+      fontFamily: "'Plus Jakarta Sans', sans-serif",
     }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <div style={{ width: "100%", maxWidth: 360, padding: 24 }}>
