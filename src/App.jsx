@@ -4936,16 +4936,6 @@ function UserGate({ children }) {
           ))}
         </nav>
       )}
-      {isMobile && (
-        <nav style={{position:'fixed',bottom:0,left:0,right:0,zIndex:999,background:COLORS.surface,borderTop:`1px solid ${COLORS.border}`,display:'flex',height:56,paddingBottom:'env(safe-area-inset-bottom)'}}>
-          {[{key:'home',label:'Home',svg:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>},{key:'planner',label:'Projects',svg:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>},{key:'docs',label:'Docs',svg:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>},{key:'clients',label:'Clients',svg:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>},{key:'services',label:'Services',svg:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>}].map(item=>(
-            <button key={item.key} onClick={()=>setModule(item.key)} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,border:'none',cursor:'pointer',background:'transparent',color:module===item.key?COLORS.accent:COLORS.textMuted,transition:'color 0.15s'}}>
-              {item.svg}
-              <span style={{fontSize:10,fontWeight:module===item.key?600:400}}>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-      )}
     </div>
   );
 }
