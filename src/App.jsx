@@ -6,19 +6,19 @@ import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClient
 const LOGO_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAA+CAYAAABuk1SaAAAWV0lEQVR42u2debRfVXXHP/s3vExkIIGEAAXMQhAUwamCCKLLolYsihS7ChVroQ7YWhasqgUtFNSlFWICtFBLabUocxlcWFlY7XJAmRQqopbKoAQCgQwvycvL+/1+u3/c78k7ud7p93vvQULuWeuu95J3h3322fPeZx+jHvWY4uHuDTPrufuBwNXAGGCp27rAfODzZnapuzfNrPt8w96ql68eBYRtQKPsNjPrvVBxUDNIPXKHmbkk+w47agapR6bmMDN3992A9+UwSQ+YATxoZteHZ2oGqccOoTwABxYCpwGbc3yGecAtwPXRMzWD1GOHGR3g2QIG6QDDtYlVjx1ZkzR1WQ79NF7ICGjUNFCPetQMUo961AxSj3pscz6IkknjRusLMNS3Lc1xR8D3dssgqcyqm1kva4HcvRE5db1+FzFNBJneY/Z3LceZpJ9sbxX4o3tcuPApYoYtczKzbsG8t1qXCeLZinCZB2fR+yZDGFShgcmms1YfBBOIrJv6WxuYRRLyGzWzsfQCuXuzn4UbgKEayWPWZcBYfCAyEWEa/hYwXfjaUDDH3mQwSgxLej7C95CuDUAnvS6BYMvwXQBrV+/pVAG3QsZ9kGy8T7V2rPL+VgXC20LY7r4QOAQ4ObAvSSJpBrATSQHaJncfBp4EHgJ+DNxnZsOp93nJd2dJInqONOqY2Uh4ZwTfNGBXYE7Kz9pgZg8XfC8UxnVFXC8DXg0cCOwBzNU828B6dx8BngB+AdwF3Gtmo6l3DcocMSxDwMHAq4D9gN01t2m61gOj7v4s8Ahwv2B5NHmVWxEhuPt0zckzfNMeMLsMXKDt7jtFz+T5uuv7REVb8/cCrbTJzMYmgOuZJCHsXHq0CguFux8BHAccCuyil3Z0BekR1HxDjNcU0zwO/BdwlZk9lCbqWOqpvKEFfAXYCxhNwdiTtrrHzE4LMLr7wcAfi3kXSNqH+2eKSd+dp2L13dnAHwLvAF6s53qaY1e/u+YVz3Ez8DBwK/A1M1tVRphFZoqqXncG3gMcC+wjZsiDJeQqgrBbA9wDfMXMvpuF7whv5wBvB9bqHenRLGES0/w3VBDEJwinN2esa9Ay84ELzOwSd38LcH4ObF1gZ+DTZnbDIEJJwvrLwBJgJCNg5UCrVUA0XXc/BDhdjNEANgrgGEGW8WKP/r4r8H7geHe/DlhmZsMlk5ovRsxikJ2AeVr0rrt/QDC2gE0ios3R/a0sFZ/SPMcDHxYxboqurDl2Mua4l2B4j7tfbGZXxUxfhTl0n7v7CSTlHb+jhdsYEWAeLEQ/W8BRwFHufruI6PEcfM/R+rRzGKTMdHKZejMqMEizT/N3WgFsgZlmMLGxs+isGoPEC+ruHwE+JAAN9UAjB5FFWmkMeEZI+jPg9e5+ppn9tIBJxqIrzSBjwe529+OAs4BVQlozRUSZjma0P2E28GngGBHiM5EWbPYxx1E9Pwf4rLsfCpxtZuuztGWO5pwBnCsttl6wNCkPxWcJqHX6/WjgYHf/SzO7JwOWToTn3oAOtuv5snv69Se8ALZuCcxVRzz/LAbxRlpzuPs0d18KnKmFXxcRzCDRCIvU/ypgb+Ar7v5GaYBmzjN5lwMzpN0+Ivhc37AK0jowx0KZcseIGDczeOlEmGNHczwWuNzd5+pbVhL9aQEXyexapQVrDYjvYBo1gdUkBYVfcveXCZZGRTxbH9+frPf0+94J++llVyMjnHih/I2nIvu2jNN7kV3sJap2g35e5O6vFJNUJcqGTJ/9gK/K59hclagjITAbuEzO+KoSYgzz66bs/yJGeVpO/sVyNPNCoEGinw28GVhZQphFZoqqXncG3gMcC+wjZsiDJeQqgrBbA9wDfMXMvpuF7whv5wBvB9bqHenRLGES0/w3VBDEJwinN2esa9Ay84ELzOwSd38LcH4ObF1gZ+DTZnbDIEJJwvrLwBJgJCNg5UCrVUA0XXc/BDhdjNEANgrgGEGW8WKP/r4r8H7geHe/DlhmZsMlk5ovRsxikJ2AeVr0rrt/QDC2gE0ios3R/a0sFZ/SPMcDHxYxboqurDl2Mua4l2B4j7tfbGZXxUxfhTl0n7v7CSTlHb+jhdsYEWAeLEQ/W8BRwFHufruI6PEcfM/R+rRzGKTMdHKZejMqMEizT/N3WgFsgZlmMLGxs+isGoPEC+ruHwE+JAAN9UAjB5FFWmkMeEZI+jPg9e5+ppn9tIBJxqIrzSBjwe529+OAs4BVQlozRUSZjma0P2E28GngGBHiM5EWbPYxx1E9Pwf4rLsfCpxtZuuztGWO5pwBnCsttl6wNCkPxWcJqHX6/WjgYHf/SzO7JwOWToTn3oAOtuv5snv69Se8ALZuCcxVRzz/LAbxRlpzuPs0d18KnKmFXxcRzCDRCIvU/ypgb+Ar7v5GaYBmzjN5lwMzpN0+Ivhc37AK0jowx0KZcseIGDczeOlEmGNHczwWuNzd5+pbVhL9aQEXyexapQVrDYjvYBo1gdUkBYVfcveXCZZGRTxbH9+frPf0+94J++llVyMjnHih/I2nIvu2jNN7kV3sJap2g35e5O6vFJNUJcqGTJ/9gK/K59hclagjITAbuEzO+KoSYgzz66bs/yJGeVpO/sVyNPNCoEGinw28GVhZQphFZoqqXncG3gMcC+wjZsiDJeQqgrBbA9wDfMXMvpuF7whv5wBvB9bqHenRLGES0/w3VBDEJwinN2esa9Ay84ELzOwSd38LcH4ObF1gZ+DTZnbDIEJJwvrLwBJgJCNg5UCrVUA0XXc/BDhdjNEANgrgGEGW8WKP/r4r8H7geHe/DlhmZsMlk5ovRsxikJ2AeVr0rrt/QDC2gE0ios3R/a0sFZ/SPMcDHxYxboqurDl2Mua4l2B4j7tfbGZXxUxfhTl0n7v7CSTlHb+jhdsYEWAeLEQ/W8BRwFHufruI6PEcfM/R+rRzGKTMdHKZejMqMEizT/N3WgFsgZlmMLGxs+isGoPEC+ruHwE+JAAN9UAjB5FFWmkMeEZI+jPg9e5+ppn9tIBJxqIrzSBjwe529+OAs4BVQlozRUSZjma0P2E28GngGBHiM5EWbPYxx1E9Pwf4rLsfCpxtZuuztGWO5pwBnCsttl6wNCkPxWcJqHX6/WjgYHf/SzO7JwOWToTn3oAOtuv5snv69Se8ALZuCcxVRzz/LAbxRlpzuPs0d18KnKmFXxcRzCDRCIvU/ypgb+Ar7v5GaYBmzjN5lwMzpN0+Ivhc37AK0jowx0KZcseIGDczeOlEmGNHczwWuNzd5+pbVhL9aQEXyexapQVrDYjvYBo1gdUkBYVfcveXCZZGRTxbH9+frPf0+94J++llVyMjnHih/I2nIvu2jNN7kV3sJap2g35e5O6vFJNUJcqGTJ/9gK/K59hclagjITAbuEzO+KoSYwzx66TsvyJGeVpO/cVyNPNCr0mSoZ0NvB1YXUKaRWaKql53Bt4DHAPsJWbIgyXkKoKwWwPcA3zFzP4rC98RXs8B3gGs1fvTU1nCJKb5b6ggiEkQTm/OWNegZeYDF5jZJe7+FuD8HNi6wM7Ap83shkGEkoT1l4ElwEhGwMqBVquA6Lrufghwuhijoe8QwDGCLOPFHv19V+D9wPHufh2wzMyGSyY1X4yYxSA7AfO06F13/4BgbAGbRESbo/tbWSo+pXmOBz4sYtwUXVlz7GTMcS/B8B53v9jMroqZvgpz6D539xNIyjt+Rwu3MSLAPFCI/m8BRwFHufvtIqLHc/A9R+vTzmGQMtPJZerNqMAg/Wd3v88RJNUATVIB8PVHLwA9aGYXSJMuMrPV7v4y4G8E2BZ0/Y1+3wh8z92PlVkwI6pU7UTIfE3S/fNm9h/u/gHgi5J84cjTVoKrnQ+zyOzzHzCze4oKJYTfVWZ2nzTHn0fnY00U4vMA12bPNLNHK1q44z1NZDX1YCHGtV4Y/8HMHnL39yk5tqvMB3efT8YpW+7+SZJk3oYKjNT0DM8jY32Mu68xs/XhJk3Y3V9G0nkxr+D3IQl8n0Jxf8sknx2fBSHs7u77F0ikGe7+YvnBf2hmT5O0YQ0y8h8yaJB2Hj2mmtljJHu83mdm33L3j5EUkQ3LPGK8f1Td+j2C0FJ5qZg0SQx8ATjdzFb2YBpj644GFl5o1oHqDY48vNHdV0jl7kzSFzwk8v4FuAK42Mz+VmF3j+mJPCiabr4apCUT8JvufraZXVDGIGWSPeRkr0wf2tOYxCD3SPKcK3uqiCAWAL+SWXlmlCDeqMgOkfYB/Bk5uqjXYjnpVe5+nxJE9Jh1VknUO9z98pDnqrKBi/RN7wrPd2v63Mx+4e5LNK87Sbq+N6rZFKRbR/P2rGYCJJIXS4InfBmSDSqb5J8WA46g+X8CON/MvqMIzcdJ2l0VbUa0liTjtYqkZ5rn4O0i4/8rFNUKZv2hBfDl7VYNKJinbr6cIf1fKf9lKckBnCMVJ3QaMstCqUNqjVUDoIQLcByxIwT6Y5WCjkQ/FDPcrHPlCWGBcQJIYLZ3kfgvkT+1r7T5b4P+p6uY+wQK3w+J85xkRhH8R+TUdxrv2cT0L2B2VPuhd7r7B4BflFO+FLhcjBLXUXQyhNSj0t7dPdeJUVVIQaxR+y9OSH8nWOkqe7TGo/J7l+qfT+x3Hy5mwnkQlV2tOgQcRZlBnKIz5X2UMQ+bhZ+X0JhRi7AJAIr8pbf5XbECCqRW8l3QhVzMVEPIYXfPaWKHjX1P2O0dz+YpAF1lSKNdfr/WMnOPO2Y1xCvC1uPZdBfqJfjz/p5PqEY+K78m2N58A2pHLmLyuwCfYJpvCu+3/P+vRYZ5B87v5ORV6ezYKl0CDnM16lHSK+u0mhTd35h8TBrYcwjKgX4dqDPsaF6XmW7JuZCqbGzAn/0OYk8g0a7r6BHlLFWkv0PcNh3vUeLNqYrSO8ItKwEvPMvxWJ/Gu0dLk2PBkJDIffaAfJkV5yj8zp/SrZHQ8wk3V1HkHGi1Y8nuzN2APxqXj/H3p0j4D/2PD7k/T5E0dzzVFIvhP5SfLcThZ8Eqf1OAP4D+IFCO1YBrvDNktwPARcCPzKzR8JZG1OpWQYp8XiepC1EWMfRygWIa7Jy2RP0DH+q6M3yvniV2Uqvuvu7IhOjk8PoC4EvVdAeTfkDNwN3irEfr5gQ+9DdD9ai/UT4viYHl6cC/6Mk4tIcwt5EVh7kYsGWx+ij0fctI2moUQWf+6QLllTbZNWFpjZgZpcofLoP8Mmq+auDtcBj2h4c/n8G4fRP/f8Hyu6qIf57oZPOmFgd4z1F8ZaS7KAYLiqhyWh+sMrMbgcec/fPlxVo1gxSj3pMJIPUox49qCe7v0RRoPisTHd/qZm1awapxw7BIGFX35GSSu75kRBqkRyitAlYZWbPUDNIPXYYBokOVG8AN5pZM/q9CSwzs+vkV9QMUo8dZYSm0U8DX0y1wgqdCu8JDV5qBqnH9qRJ2rlmVsAg+0VarUE9/V2PemwPKkRRLYuScXeV3B6c3RG59z0UgfKJZJApIQTf6oSY5d+R7NoLEd2qMNqr5Fk3BrieZ+d+6LVjE0lFyyKCmyjYd0ePa/k2f1Iyv0f07oEUyjP5LlWG5hFP4/p4dFSh3RJVATrSpLyh2gd9oveLyWpTi++uFYR7Jh0JmMypz0JCJeR1MkFBq4/NbOfVCHqhGdwi8TjW6LnO2UE2CtIymCqWJypqQ5oo4B54m5gw98L3AvzxGAeS9lTT5CUuX1qhQmSnDiCIzW1FUdOMp6XAqSaPHG0KnEtV+tZXkxN190Xey/u1G8CJ3/6S+Wy8YONZEG8Z9e5c5+UkZ5WjPO9x9Zy3I5mgB7gLOMLO7+zj0s9S+5AkkCYH1VpyR9kXQ22U2XLXZGY+KfnRFnJH2jEK9a4GvZzBIMHWPJskW31X27jXAr0uSg+1kG+5TCjhVPWnzZJJTttZE4euJ8Eaap9j2W0R2uYzw2UwCfiAT9N8b0f5eV2L3iPYqV1Y4txfB0FDYO1HCJKzpbOBsdz+UpDnAJpmZ/wMJ9U8hNnEW5QAAAABJRU5ErkJggg==";
 
 const DARK_THEME = {
-  bg: "#0A0A0A",
-  surface: "#151515",
-  surfaceHover: "#1C1C1C",
-  surfaceActive: "#242424",
-  border: "#2C2C2C",
-  borderLight: "#3A3A3A",
-  text: "#F0F0F0",
-  textMuted: "#A0A0A0",
-  textDim: "#707070",
+  bg: "#111318",
+  surface: "#161920",
+  surfaceHover: "#1a1d24",
+  surfaceActive: "#1e2230",
+  border: "#1e2028",
+  borderLight: "#252830",
+  text: "#eef0f5",
+  textMuted: "#9099b0",
+  textDim: "#4a5270",
   accent: "#7ACF85",
   accentDim: "#5BB866",
   accentGlow: "rgba(122,207,133,0.08)",
-  danger: "#CF5C5C",
+  danger: "#e05a5a",
   success: "#7ACF85",
   blue: "#5B9BCF",
   purple: "#9B7ADB",
@@ -4427,6 +4427,13 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
     try { localStorage.setItem("creatly_theme", theme); } catch(e) {}
   }, [theme]);
 
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    const h = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+
   // Toast notification for other user's changes
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -4530,7 +4537,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   if (loading || docsLoading) {
     return (
       <div style={{ minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ color: COLORS.accent, fontSize: 16, fontFamily: "'DM Sans', sans-serif" }}>Loading...</div>
+        <div style={{ color: COLORS.accent, fontSize: 16, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Loading...</div>
       </div>
     );
   }
@@ -4541,7 +4548,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         minHeight: "100vh",
         background: COLORS.bg,
         color: COLORS.text,
-        fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
       }}
     >
       <style>{`
@@ -4570,281 +4577,44 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Top Bar */}
-      <header
-        className="creatly-header"
-        style={{
-          padding: "14px 24px",
-          borderBottom: `1px solid ${COLORS.border}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          flexWrap: "wrap",
-          background: COLORS.surface,
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <img src={LOGO_SRC} alt="creatly" style={{ height: 26, objectFit: "contain" }} />
-          {/* Module tabs */}
-          <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-            {[{ key: "home", label: "Home" }, { key: "planner", label: "Planner" }, { key: "docs", label: "Docs" }, { key: "clients", label: "Clients" }, { key: "services", label: "Services" }, { key: "ideas", label: "Ideas" }].map((m) => (
-              <button
-                key={m.key}
-                onClick={() => setModule(m.key)}
-                style={{
-                  background: module === m.key ? COLORS.bg : "transparent",
-                  border: "none", padding: "6px 14px", cursor: "pointer",
-                  color: module === m.key ? COLORS.accent : COLORS.textDim,
-                  fontSize: 12, fontWeight: module === m.key ? 600 : 400, transition: "all 0.15s",
-                }}
-              >
-                {m.label}
+        {/* Sidebar nav */}
+        <div style={{ display: isMobile ? "none" : "flex",
+          width: 68, flexShrink: 0, background: COLORS.surface,
+          borderRight: `0.5px solid ${COLORS.border}`,
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "20px 0", position: "fixed", left: 0, top: 0, bottom: 0, zIndex: 100,
+        }}>
+          <div style={{ width: 38, height: 38, background: COLORS.accent, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 28, flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+              <rect x="1" y="1" width="6" height="6" rx="2" fill="#0a2e0f"/>
+              <rect x="9" y="1" width="6" height="6" rx="2" fill="#0a2e0f"/>
+              <rect x="1" y="9" width="6" height="6" rx="2" fill="#0a2e0f"/>
+              <rect x="9" y="9" width="6" height="6" rx="2" fill="#0a2e0f" opacity="0.4"/>
+            </svg>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, width: "100%", padding: "0 10px" }}>
+            {[
+              { key: "home", label: "Home", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="7" height="7" rx="2" fill="currentColor"/><rect x="11" y="2" width="7" height="7" rx="2" fill="currentColor"/><rect x="2" y="11" width="7" height="7" rx="2" fill="currentColor"/><rect x="11" y="11" width="7" height="7" rx="2" fill="currentColor" opacity="0.4"/></svg> },
+              { key: "planner", label: "Planner", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="5" width="16" height="2" rx="1" fill="currentColor"/><rect x="2" y="9" width="16" height="2" rx="1" fill="currentColor"/><rect x="2" y="13" width="10" height="2" rx="1" fill="currentColor"/></svg> },
+              { key: "docs", label: "Docs", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14v10H3z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 17h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { key: "clients", label: "Clients", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.5"/><path d="M3 17c0-3.866 3.134-6 7-6s7 2.134 7 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { key: "services", label: "Services", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5"/><path d="M10 6v8M6 10h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { key: "ideas", label: "Ideas", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.5 5 5.5.8-4 3.9.9 5.5L10 14.5l-4.9 2.7.9-5.5L2 7.8 7.5 7z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
+            ].map((m) => (
+              <button key={m.key} onClick={() => setModule(m.key)} title={m.label} style={{ width: "100%", aspectRatio: "1", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "none", background: module === m.key ? "rgba(122,207,133,0.15)" : "transparent", color: module === m.key ? COLORS.accent : COLORS.textDim, transition: "all 0.15s" }}>
+                {m.icon}
               </button>
             ))}
           </div>
-        </div>
-
-        {module === "planner" && <div className="creatly-header-search" style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, maxWidth: 500 }}>
-          {/* Search */}
-          <div style={{ position: "relative", flex: 1 }}>
-            <Icon name="search" size={14} color={COLORS.textDim} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search projects..."
-              style={{
-                width: "100%",
-                background: COLORS.surfaceActive,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 6,
-                padding: "7px 10px 7px 32px",
-                color: COLORS.text,
-                fontSize: 13,
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-
-          {/* Filter */}
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={{
-              background: COLORS.surfaceActive,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 6,
-              padding: "7px 10px",
-              color: COLORS.textMuted,
-              fontSize: 12,
-              outline: "none",
-              appearance: "none",
-              cursor: "pointer",
-            }}
-          >
-            <option value="all">All Status</option>
-            {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-              <option key={k} value={k}>{v.label}</option>
-            ))}
-          </select>
-        </div>}
-
-        <div className="creatly-header-actions" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {/* Notification Bell */}
-          <div style={{ position: "relative" }} data-notif-panel="true">
-            <button
-              onClick={() => { setShowNotifications(v => !v); if (!showNotifications) markAllRead(); }}
-              style={{
-                background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`,
-                borderRadius: 6, padding: "7px 10px", cursor: "pointer",
-                color: COLORS.textMuted, fontSize: 15, lineHeight: 1, position: "relative",
-              }}
-              title="Notifications"
-            >
-              🔔
-              {unreadCount > 0 && (
-                <span style={{
-                  position: "absolute", top: 3, right: 3, width: 8, height: 8,
-                  borderRadius: "50%", background: COLORS.accent, display: "block",
-                }} />
-              )}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "14px 10px 0", borderTop: `0.5px solid ${COLORS.border}`, width: "100%" }}>
+            <button onClick={() => setKitOpen(v => !v)} style={{ width: 38, height: 38, background: COLORS.accent, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "none" }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v8H2zM6 14h4" stroke="#0a2e0f" strokeWidth="1.5" strokeLinecap="round"/></svg>
             </button>
-            {showNotifications && (
-              <div
-                onClick={e => e.stopPropagation()}
-                style={{
-                  position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 500,
-                  background: COLORS.surface, border: `1px solid ${COLORS.border}`,
-                  borderRadius: 10, width: 320, maxHeight: 400, overflow: "auto",
-                  boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
-                }}
-              >
-                <div style={{ padding: "12px 16px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Notifications</span>
-                  <button onClick={() => setShowNotifications(false)} style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", fontSize: 16 }}>×</button>
-                </div>
-                {notifications.length === 0 ? (
-                  <div style={{ padding: "32px 16px", textAlign: "center", color: COLORS.textDim, fontSize: 13 }}>No notifications yet</div>
-                ) : (
-                  notifications.map(n => (
-                    <div
-                      key={n.id}
-                      onClick={() => { if (n.type === "intake") setModule("clients"); setShowNotifications(false); }}
-                      style={{
-                        padding: "12px 16px", borderBottom: `1px solid ${COLORS.border}`,
-                        cursor: n.type === "intake" ? "pointer" : "default",
-                        background: n[`read_${currentUserId}`] ? "transparent" : `${COLORS.accent}08`,
-                        transition: "background 0.15s",
-                      }}
-                      onMouseEnter={e => { if (n.type === "intake") e.currentTarget.style.background = COLORS.surfaceHover; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = n[`read_${currentUserId}`] ? "transparent" : `${COLORS.accent}08`; }}
-                    >
-                      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <span style={{ fontSize: 16, flexShrink: 0 }}>{n.type === "intake" ? "📋" : "🔄"}</span>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginBottom: 2 }}>{n.title}</div>
-                          {n.body && <div style={{ fontSize: 12, color: COLORS.textMuted }}>{n.body}</div>}
-                          <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>
-                            {new Date(n.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                          </div>
-                        </div>
-                        {!n[`read_${currentUserId}`] && (
-                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS.accent, flexShrink: 0, marginTop: 4 }} />
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+            <div onClick={onLogout} style={{ width: 38, height: 38, borderRadius: "50%", background: COLORS.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, color: "#0a2e0f", cursor: "pointer" }}>
+              {currentUser === "ludvig" ? "L" : "J"}
+            </div>
           </div>
-
-          {/* User indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}` }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.accent }} />
-            <span style={{ fontSize: 11, color: COLORS.textMuted, fontWeight: 500 }}>{currentUser.name}</span>
-            <button
-              onClick={onLogout}
-              style={{ background: "none", border: "none", color: COLORS.textDim, fontSize: 11, cursor: "pointer", padding: "0 0 0 4px" }}
-              title="Sign out"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Theme Toggle - always visible */}
-          <button
-            onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
-            style={{
-              background: COLORS.surfaceActive,
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 6,
-              padding: "7px 10px",
-              cursor: "pointer",
-              color: COLORS.textMuted,
-              fontSize: 14,
-              lineHeight: 1,
-            }}
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {theme === "dark" ? "☀️" : "🌙"}
-          </button>
-
-          {/* Planner-only buttons */}
-          {module === "planner" && (
-            <>
-              {/* View toggles */}
-              <div style={{ display: "flex", background: COLORS.surfaceActive, borderRadius: 6, border: `1px solid ${COLORS.border}`, overflow: "hidden" }}>
-                {viewButtons.map((v) => (
-                  <button
-                    key={v.key}
-                    onClick={() => setView(v.key)}
-                    style={{
-                      background: view === v.key ? COLORS.bg : "transparent",
-                      border: "none",
-                      padding: "6px 12px",
-                      cursor: "pointer",
-                      color: view === v.key ? COLORS.accent : COLORS.textDim,
-                      fontSize: 11,
-                      fontWeight: view === v.key ? 600 : 400,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    <Icon name={v.icon} size={13} color={view === v.key ? COLORS.accent : COLORS.textDim} />
-                    {v.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tag Colors */}
-              <button
-                onClick={() => setShowTagManager(true)}
-                style={{
-                  background: COLORS.surfaceActive,
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: 6,
-                  padding: "7px 10px",
-                  cursor: "pointer",
-                  color: COLORS.textMuted,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 12,
-                }}
-              >
-                Tags
-              </button>
-
-              {/* Field Settings */}
-              <button
-                onClick={() => setShowFieldSettings(true)}
-                style={{
-                  background: COLORS.surfaceActive,
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: 6,
-                  padding: "7px 10px",
-                  cursor: "pointer",
-                  color: COLORS.textMuted,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontSize: 12,
-                }}
-              >
-                <Icon name="filter" size={13} color={COLORS.textMuted} />
-                Fields
-              </button>
-
-              {/* New Project */}
-              <button
-                onClick={() => setModal("new")}
-                style={{
-                  background: COLORS.accent,
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "7px 14px",
-                  color: COLORS.bg,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                }}
-              >
-                <Icon name="plus" size={14} color={COLORS.bg} />
-                New
-              </button>
-            </>
-          )}
         </div>
-      </header>
 
       {/* Content */}
       <main style={{ padding: 24, maxWidth: module === "planner" && view === "timeline" && !detailProject ? "none" : 1400, margin: "0 auto" }}>
@@ -5124,7 +4894,7 @@ function UserGate({ children }) {
   return (
     <div style={{
       minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+      fontFamily: "'Plus Jakarta Sans', sans-serif",
     }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <div style={{ width: "100%", maxWidth: 360, padding: 24 }}>
@@ -5159,6 +4929,23 @@ function UserGate({ children }) {
         </div>
       </div>
     </div>
+      {/* Mobile bottom nav */}
+      {isMobile && (
+        <nav style={{position:"fixed",bottom:0,left:0,right:0,zIndex:999,background:COLORS.surface,borderTop:"1px solid "+COLORS.border,display:"flex",height:56,paddingBottom:"env(safe-area-inset-bottom)"}}>
+          {[
+            {k:"home",l:"Home",p:"M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"},
+            {k:"planner",l:"Projects",p:"M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z"},
+            {k:"docs",l:"Docs",p:"M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"},
+            {k:"clients",l:"Clients",p:"M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"},
+            {k:"services",l:"Services",p:"M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"},
+          ].map(item => (
+            <button key={item.k} onClick={()=>setModule(item.k)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,border:"none",cursor:"pointer",background:"transparent",color:module===item.k?COLORS.accent:COLORS.textMuted}}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d={item.p}/></svg>
+              <span style={{fontSize:9,fontWeight:module===item.k?600:400}}>{item.l}</span>
+            </button>
+          ))}
+        </nav>
+      )}
   );
 }
 
