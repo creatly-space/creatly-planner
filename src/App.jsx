@@ -4427,8 +4427,8 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
     try { localStorage.setItem("creatly_theme", theme); } catch(e) {}
   }, [theme]);
 
-  const [isMobile, setIsMobile] = React.useState(false);
-  React.useEffect(() => {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 768);
     h();
     window.addEventListener('resize', h);
