@@ -3195,7 +3195,7 @@ RULES:
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflow: "auto", paddingBottom: isMobile ? 56 : 0, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ flex: 1, overflow: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
         {messages.map((msg, i) => (
           <div key={i} style={{
             display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
