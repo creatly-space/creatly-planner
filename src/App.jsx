@@ -4430,7 +4430,6 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const [isMobile, setIsMobile] = React.useState(false);
   React.useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 768);
-    h();
     window.addEventListener('resize', h);
     return () => window.removeEventListener('resize', h);
   }, []);
