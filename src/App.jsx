@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications, useServices, useIdeas } from "./hooks";
+import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications, useServices, useIdeas, useQuotes } from "./hooks";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -3700,60 +3700,436 @@ Keep it sharp, professional, and client-ready. No fluff.`
   );
 };
 
-// ─── Services View ────────────────────────────────────────────────────────────
-const ServicesView = ({ services, clients, onEdit, onNew, onSave, onDelete, currentUserId, saveDoc, showToast }) => {
-  const [showBrief, setShowBrief] = useState(false);
-  const CATEGORIES = [...new Set(services.map(s => s.category))];
-  const totalRevenue = services.reduce((sum, s) => sum + s.price_sek, 0);
+// ─── Quote Editor ─────────────────────────────────────────────────────────────
+const QuoteEditor = ({ quote, services, clients, onSave, onDelete, onClose }) => {
+  const isNew = !quote;
+  const nextNum = `CRE-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100)}`;
+
+  const [form, setForm] = useState(quote || {
+    id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+    number: nextNum,
+    client_name: "",
+    client_email: "",
+    valid_days: 30,
+    payment_terms: "30 dagar netto",
+    note: "Tack för förtroendet! Offerten är giltig i 30 dagar från utfärdandedatum.",
+    status: "draft",
+    lines: [],
+    created_at: new Date().toISOString(),
+  });
+
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showServicePicker, setShowServicePicker] = useState(false);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const addLine = () => setForm(f => ({ ...f, lines: [...f.lines, { id: crypto.randomUUID?.() || Math.random().toString(36).slice(2), name: "", description: "", qty: 1, price: 0 }] }));
+
+  const updateLine = (id, k, v) => setForm(f => ({ ...f, lines: f.lines.map(l => l.id === id ? { ...l, [k]: v } : l) }));
+  const removeLine = (id) => setForm(f => ({ ...f, lines: f.lines.filter(l => l.id !== id) }));
+
+  const addFromService = (s) => {
+    setForm(f => ({ ...f, lines: [...f.lines, { id: crypto.randomUUID?.() || Math.random().toString(36).slice(2), name: s.name, description: s.description || "", qty: 1, price: s.price_sek }] }));
+    setShowServicePicker(false);
+  };
+
+  const netto = form.lines.reduce((sum, l) => sum + (Number(l.qty) * Number(l.price)), 0);
+  const moms = Math.round(netto * 0.25);
+  const total = netto + moms;
+
+  const validUntil = () => {
+    const d = new Date(form.created_at);
+    d.setDate(d.getDate() + Number(form.valid_days));
+    return d.toLocaleDateString("sv-SE");
+  };
+
+  const handlePrint = () => {
+    const html = buildQuoteHTML(form, netto, moms, total, validUntil());
+    const w = window.open("", "_blank");
+    w.document.write(html);
+    w.document.close();
+    setTimeout(() => w.print(), 400);
+  };
+
+  const handleSave = () => {
+    onSave({ ...form, updated_at: new Date().toISOString() });
+    onClose();
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "24px 16px", overflowY: "auto" }}>
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 14, width: "100%", maxWidth: 720, padding: 32 }}>
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text }}>{isNew ? "Ny offert" : `Offert #${form.number}`}</div>
+            <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 2 }}>{isNew ? "Fyll i uppgifterna nedan" : form.status === "sent" ? "Skickad" : "Utkast"}</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: COLORS.textMuted, fontSize: 20, cursor: "pointer" }}>✕</button>
+        </div>
+
+        {/* Meta fields */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Offert-nr</div>
+            <input value={form.number} onChange={e => set("number", e.target.value)} style={{ width: "100%", background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 12px", color: COLORS.text, fontSize: 13 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Status</div>
+            <select value={form.status} onChange={e => set("status", e.target.value)} style={{ width: "100%", background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 12px", color: COLORS.text, fontSize: 13 }}>
+              <option value="draft">Utkast</option>
+              <option value="sent">Skickad</option>
+              <option value="accepted">Accepterad</option>
+              <option value="declined">Avböjd</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Klient</div>
+            <input value={form.client_name} onChange={e => set("client_name", e.target.value)} placeholder="Företagsnamn" style={{ width: "100%", background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 12px", color: COLORS.text, fontSize: 13 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>E-post</div>
+            <input value={form.client_email} onChange={e => set("client_email", e.target.value)} placeholder="kontakt@klient.se" style={{ width: "100%", background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 12px", color: COLORS.text, fontSize: 13 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Giltig (dagar)</div>
+            <input type="number" value={form.valid_days} onChange={e => set("valid_days", e.target.value)} style={{ width: "100%", background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 12px", color: COLORS.text, fontSize: 13 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Betalningsvillkor</div>
+            <input value={form.payment_terms} onChange={e => set("payment_terms", e.target.value)} style={{ width: "100%", background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 12px", color: COLORS.text, fontSize: 13 }} />
+          </div>
+        </div>
+
+        {/* Lines */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Tjänster / Rader</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setShowServicePicker(true)} style={{ background: "none", border: `1px solid ${COLORS.accent}`, borderRadius: 6, padding: "5px 12px", color: COLORS.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ Från prismoduler</button>
+              <button onClick={addLine} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "5px 12px", color: COLORS.textMuted, fontSize: 12, cursor: "pointer" }}>+ Egen rad</button>
+            </div>
+          </div>
+
+          {/* Service picker */}
+          {showServicePicker && (
+            <div style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 8 }}>Välj tjänst att lägga till:</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {services.map(s => (
+                  <div key={s.id} onClick={() => addFromService(s)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8, cursor: "pointer" }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.accent}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.text }}>{s.name}</div>
+                    <div style={{ fontSize: 13, color: COLORS.accent, fontWeight: 600 }}>{s.price_sek.toLocaleString("sv-SE")} SEK</div>
+                  </div>
+                ))}
+                {services.length === 0 && <div style={{ fontSize: 12, color: COLORS.textDim, padding: "8px 0" }}>Inga tjänster tillagda ännu.</div>}
+              </div>
+              <button onClick={() => setShowServicePicker(false)} style={{ marginTop: 10, background: "none", border: "none", color: COLORS.textMuted, fontSize: 12, cursor: "pointer" }}>Stäng</button>
+            </div>
+          )}
+
+          {/* Line items */}
+          {form.lines.length === 0 && (
+            <div style={{ textAlign: "center", padding: "24px 0", color: COLORS.textDim, fontSize: 13, border: `1px dashed ${COLORS.border}`, borderRadius: 10 }}>Inga rader än. Lägg till en tjänst ovan.</div>
+          )}
+          {form.lines.map((l, i) => (
+            <div key={l.id} style={{ display: "grid", gridTemplateColumns: "1fr 80px 110px 32px", gap: 8, marginBottom: 8, alignItems: "start" }}>
+              <div>
+                <input value={l.name} onChange={e => updateLine(l.id, "name", e.target.value)} placeholder="Tjänstnamn" style={{ width: "100%", background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "7px 10px", color: COLORS.text, fontSize: 13, marginBottom: 4 }} />
+                <input value={l.description} onChange={e => updateLine(l.id, "description", e.target.value)} placeholder="Beskrivning (valfri)" style={{ width: "100%", background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "7px 10px", color: COLORS.textMuted, fontSize: 12 }} />
+              </div>
+              <input type="number" value={l.qty} onChange={e => updateLine(l.id, "qty", e.target.value)} placeholder="Antal" style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "7px 10px", color: COLORS.text, fontSize: 13, width: "100%" }} />
+              <input type="number" value={l.price} onChange={e => updateLine(l.id, "price", e.target.value)} placeholder="Pris (SEK)" style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "7px 10px", color: COLORS.text, fontSize: 13, width: "100%" }} />
+              <button onClick={() => removeLine(l.id)} style={{ background: "none", border: "none", color: COLORS.danger, fontSize: 16, cursor: "pointer", padding: "7px 0" }}>✕</button>
+            </div>
+          ))}
+        </div>
+
+        {/* Totals */}
+        {form.lines.length > 0 && (
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+            <div style={{ width: 240, background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 16px", fontSize: 13, color: COLORS.textMuted, borderBottom: `1px solid ${COLORS.border}` }}>
+                <span>Netto</span><span>{netto.toLocaleString("sv-SE")} kr</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 16px", fontSize: 13, color: COLORS.textMuted, borderBottom: `1px solid ${COLORS.border}` }}>
+                <span>Moms (25%)</span><span>{moms.toLocaleString("sv-SE")} kr</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 16px", fontSize: 15, fontWeight: 700, color: COLORS.accent }}>
+                <span>Totalt</span><span>{total.toLocaleString("sv-SE")} kr</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Note */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Meddelande</div>
+          <textarea value={form.note} onChange={e => set("note", e.target.value)} rows={2} style={{ width: "100%", background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 12px", color: COLORS.text, fontSize: 13, resize: "vertical" }} />
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            {!isNew && !confirmDelete && <button onClick={() => setConfirmDelete(true)} style={{ background: "none", border: "none", color: COLORS.danger, fontSize: 13, cursor: "pointer" }}>Ta bort offert</button>}
+            {confirmDelete && <span style={{ fontSize: 13, color: COLORS.danger }}>Säker? <button onClick={() => { onDelete(form.id); onClose(); }} style={{ background: "none", border: "none", color: COLORS.danger, fontWeight: 700, cursor: "pointer" }}>Ja, ta bort</button> · <button onClick={() => setConfirmDelete(false)} style={{ background: "none", border: "none", color: COLORS.textMuted, cursor: "pointer" }}>Avbryt</button></span>}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handlePrint} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 16px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>🖨 Förhandsgranska PDF</button>
+            <button onClick={handleSave} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 20px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Spara</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Quote HTML generator ─────────────────────────────────────────────────────
+function buildQuoteHTML(form, netto, moms, total, validUntil) {
+  const issued = new Date(form.created_at).toLocaleDateString("sv-SE", { year: "numeric", month: "long", day: "numeric" });
+  const linesHTML = form.lines.map(l => {
+    const lineTotal = Number(l.qty) * Number(l.price);
+    return `<tr>
+      <td>
+        <div class="item-name">${l.name || "—"}</div>
+        ${l.description ? `<div class="item-desc">${l.description}</div>` : ""}
+      </td>
+      <td>${l.qty}</td>
+      <td>${Number(l.price).toLocaleString("sv-SE")} kr</td>
+      <td style="color:#fff;font-weight:600;">${lineTotal.toLocaleString("sv-SE")} kr</td>
+    </tr>`;
+  }).join("");
+
+  return `<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<title>Offert #${form.number}</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:#111318;color:#e8e8e8;padding:48px;min-height:100vh}
+  .page{max-width:740px;margin:0 auto;background:#111318}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:48px;padding-bottom:28px;border-bottom:1px solid #1e2128}
+  .logo-block{display:flex;align-items:center;gap:12px}
+  .c-logo{width:36px;height:36px;background:#7ACF85;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#111318;flex-shrink:0}
+  .logo-name{font-size:16px;font-weight:700;color:#fff}
+  .logo-tag{font-size:11px;color:#4a4f5c}
+  .doc-type{font-size:11px;font-weight:600;color:#7ACF85;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;text-align:right}
+  .doc-number{font-size:20px;font-weight:700;color:#fff;text-align:right}
+  .doc-date{font-size:12px;color:#4a4f5c;text-align:right;margin-top:4px}
+  .addresses{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px}
+  .addr{background:#161920;border:1px solid #1e2128;border-radius:8px;padding:18px 22px}
+  .addr label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#4a4f5c;display:block;margin-bottom:8px}
+  .addr .name{font-weight:600;font-size:14px;margin-bottom:4px;color:#fff}
+  .addr p{font-size:12px;color:#6b7280;line-height:1.8}
+  .meta-strip{display:flex;border:1px solid #1e2128;border-radius:8px;overflow:hidden;margin-bottom:36px}
+  .meta-item{flex:1;padding:12px 18px;border-right:1px solid #1e2128}
+  .meta-item:last-child{border-right:none}
+  .meta-item span:first-child{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#4a4f5c;display:block;margin-bottom:4px}
+  .meta-item span:last-child{font-size:13px;font-weight:500;color:#c8cdd8}
+  table{width:100%;border-collapse:collapse;margin-bottom:0}
+  thead th{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#4a4f5c;padding:0 0 12px 0;text-align:left;border-bottom:1px solid #1e2128}
+  thead th:nth-child(2),thead th:nth-child(3),thead th:nth-child(4){text-align:right}
+  tbody td{padding:18px 0;border-bottom:1px solid #161920;vertical-align:top}
+  tbody td:nth-child(2),tbody td:nth-child(3),tbody td:nth-child(4){text-align:right;font-size:13px;color:#c8cdd8;white-space:nowrap}
+  .item-name{font-weight:600;font-size:14px;color:#fff;margin-bottom:4px}
+  .item-desc{font-size:12px;color:#4a4f5c;line-height:1.6}
+  .totals-wrap{display:flex;justify-content:flex-end;margin-top:12px}
+  .totals{width:260px;border:1px solid #1e2128;border-radius:8px;overflow:hidden}
+  .total-row{display:flex;justify-content:space-between;padding:11px 18px;font-size:13px;color:#6b7280;border-bottom:1px solid #1e2128}
+  .total-row:last-child{border-bottom:none;background:#161920}
+  .total-row.grand span{font-size:15px;font-weight:700;color:#7ACF85}
+  .note{margin-top:40px;padding:18px 22px;background:#161920;border:1px solid #1e2128;border-radius:8px}
+  .note label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#4a4f5c;display:block;margin-bottom:8px}
+  .note p{font-size:13px;color:#6b7280;line-height:1.7}
+  .footer{margin-top:48px;padding-top:16px;border-top:1px solid #1e2128;display:flex;justify-content:space-between}
+  .footer p{font-size:11px;color:#2e3340}
+  @media print{body{padding:32px;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="logo-block">
+      <div class="c-logo">C</div>
+      <div><div class="logo-name">Creatly</div><div class="logo-tag">AI-First Creative Bureau</div></div>
+    </div>
+    <div>
+      <div class="doc-type">Offert</div>
+      <div class="doc-number">#${form.number}</div>
+      <div class="doc-date">${issued}</div>
+    </div>
+  </div>
+  <div class="addresses">
+    <div class="addr"><label>Från</label><div class="name">Creatly</div><p>Ludvig Lindström<br>ludvig@creatly.se<br>Kalmar, Sverige</p></div>
+    <div class="addr"><label>Till</label><div class="name">${form.client_name || "—"}</div><p>${form.client_email || ""}</p></div>
+  </div>
+  <div class="meta-strip">
+    <div class="meta-item"><span>Giltig till</span><span>${validUntil}</span></div>
+    <div class="meta-item"><span>Betalningsvillkor</span><span>${form.payment_terms}</span></div>
+    <div class="meta-item"><span>Valuta</span><span>SEK</span></div>
+  </div>
+  <table>
+    <thead><tr><th style="width:52%">Tjänst</th><th style="width:12%">Antal</th><th style="width:18%">À-pris</th><th style="width:18%">Belopp</th></tr></thead>
+    <tbody>${linesHTML}</tbody>
+  </table>
+  <div class="totals-wrap">
+    <div class="totals">
+      <div class="total-row"><span>Netto</span><span>${netto.toLocaleString("sv-SE")} kr</span></div>
+      <div class="total-row"><span>Moms (25%)</span><span>${moms.toLocaleString("sv-SE")} kr</span></div>
+      <div class="total-row grand"><span>Totalt</span><span>${total.toLocaleString("sv-SE")} kr</span></div>
+    </div>
+  </div>
+  ${form.note ? `<div class="note"><label>Meddelande</label><p>${form.note}</p></div>` : ""}
+  <div class="footer"><p>Creatly · creatly.se · ludvig@creatly.se</p><p>Offert #${form.number} · ${issued}</p></div>
+</div>
+</body></html>`;
+}
+
+// ─── Quotes List View ─────────────────────────────────────────────────────────
+const QuotesView = ({ quotes, services, clients, saveQuote, deleteQuote }) => {
+  const [editing, setEditing] = useState(null);
+  const [showNew, setShowNew] = useState(false);
+
+  const statusLabel = { draft: "Utkast", sent: "Skickad", accepted: "Accepterad", declined: "Avböjd" };
+  const statusColor = { draft: COLORS.textMuted, sent: COLORS.blue, accepted: COLORS.accent, declined: COLORS.danger };
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.text }}>Services & Pricing</h2>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: COLORS.textMuted }}>{services.length} services · avg {services.length > 0 ? Math.round(totalRevenue / services.length).toLocaleString("sv-SE") : 0} SEK</p>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.text }}>Offerter</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: COLORS.textMuted }}>{quotes.length} offert{quotes.length !== 1 ? "er" : ""}</p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setShowBrief(true)} style={{ background: "none", border: `1px solid ${COLORS.accent}`, borderRadius: 8, padding: "8px 16px", color: COLORS.accent, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-            ✨ Generate Brief
-          </button>
-          <button onClick={onNew} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-            + Add Service
-          </button>
-        </div>
+        <button onClick={() => setShowNew(true)} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Ny offert</button>
       </div>
 
-      {CATEGORIES.map(cat => (
-        <div key={cat} style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>{cat}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {services.filter(s => s.category === cat).map(s => (
-              <div
-                key={s.id}
-                onClick={() => onEdit(s)}
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 10, cursor: "pointer", transition: "all 0.15s" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.borderLight; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.transform = "none"; }}
-              >
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginBottom: 3 }}>{s.name}</div>
-                  {s.description && <div style={{ fontSize: 12, color: COLORS.textMuted }}>{s.description}</div>}
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 20 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{s.price_sek.toLocaleString("sv-SE")} <span style={{ fontSize: 12, color: COLORS.textMuted }}>SEK</span></div>
-                  <div style={{ fontSize: 11, color: COLORS.textDim }}>~{s.estimated_days} day{s.estimated_days !== 1 ? "s" : ""}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-
-      {services.length === 0 && (
+      {quotes.length === 0 && (
         <div style={{ textAlign: "center", padding: "80px 20px", color: COLORS.textDim }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>💼</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.textMuted, marginBottom: 8 }}>No services yet</div>
-          <button onClick={onNew} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "10px 24px", color: COLORS.bg, fontSize: 14, fontWeight: 600, cursor: "pointer", marginTop: 12 }}>Add your first service</button>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>📄</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.textMuted, marginBottom: 8 }}>Inga offerter än</div>
+          <button onClick={() => setShowNew(true)} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "10px 24px", color: COLORS.bg, fontSize: 14, fontWeight: 600, cursor: "pointer", marginTop: 12 }}>Skapa första offerten</button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {quotes.map(q => {
+          const total = (q.lines || []).reduce((s, l) => s + Number(l.qty) * Number(l.price), 0);
+          const totalIncMoms = Math.round(total * 1.25);
+          return (
+            <div key={q.id} onClick={() => setEditing(q)}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 10, cursor: "pointer" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.borderLight; e.currentTarget.style.transform = "translateY(-1px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.transform = "none"; }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginBottom: 3 }}>#{q.number} · {q.client_name || "Ingen klient"}</div>
+                <div style={{ fontSize: 12, color: COLORS.textMuted }}>{new Date(q.created_at).toLocaleDateString("sv-SE")}</div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 20 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{totalIncMoms.toLocaleString("sv-SE")} <span style={{ fontSize: 12, color: COLORS.textMuted }}>kr inkl. moms</span></div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: statusColor[q.status] || COLORS.textMuted, marginTop: 2 }}>{statusLabel[q.status] || q.status}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {(showNew || editing) && (
+        <QuoteEditor
+          quote={editing}
+          services={services}
+          clients={clients}
+          onSave={saveQuote}
+          onDelete={deleteQuote}
+          onClose={() => { setEditing(null); setShowNew(false); }}
+        />
+      )}
+    </div>
+  );
+};
+
+// ─── Services View ────────────────────────────────────────────────────────────
+const ServicesView = ({ services, quotes, clients, onEdit, onNew, onSave, onDelete, currentUserId, saveDoc, showToast, saveQuote, deleteQuote }) => {
+  const [showBrief, setShowBrief] = useState(false);
+  const [tab, setTab] = useState("services");
+  const CATEGORIES = [...new Set(services.map(s => s.category))];
+  const totalRevenue = services.reduce((sum, s) => sum + s.price_sek, 0);
+
+  return (
+    <div>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 0, marginBottom: 28, borderBottom: `1px solid ${COLORS.border}` }}>
+        {[{ key: "services", label: "Tjänster & Priser" }, { key: "quotes", label: "Offerter" }].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{ background: "none", border: "none", borderBottom: tab === t.key ? `2px solid ${COLORS.accent}` : "2px solid transparent", padding: "0 0 12px 0", marginRight: 24, color: tab === t.key ? COLORS.accent : COLORS.textMuted, fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "quotes" && (
+        <QuotesView
+          quotes={quotes}
+          services={services}
+          clients={clients}
+          saveQuote={saveQuote}
+          deleteQuote={deleteQuote}
+        />
+      )}
+
+      {tab === "services" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: COLORS.text }}>Services & Pricing</h2>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: COLORS.textMuted }}>{services.length} services · avg {services.length > 0 ? Math.round(totalRevenue / services.length).toLocaleString("sv-SE") : 0} SEK</p>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setShowBrief(true)} style={{ background: "none", border: `1px solid ${COLORS.accent}`, borderRadius: 8, padding: "8px 16px", color: COLORS.accent, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                ✨ Generate Brief
+              </button>
+              <button onClick={onNew} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                + Add Service
+              </button>
+            </div>
+          </div>
+
+          {CATEGORIES.map(cat => (
+            <div key={cat} style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.accent, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>{cat}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {services.filter(s => s.category === cat).map(s => (
+                  <div
+                    key={s.id}
+                    onClick={() => onEdit(s)}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 10, cursor: "pointer", transition: "all 0.15s" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.borderLight; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.transform = "none"; }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text, marginBottom: 3 }}>{s.name}</div>
+                      {s.description && <div style={{ fontSize: 12, color: COLORS.textMuted }}>{s.description}</div>}
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 20 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{s.price_sek.toLocaleString("sv-SE")} <span style={{ fontSize: 12, color: COLORS.textMuted }}>SEK</span></div>
+                      <div style={{ fontSize: 11, color: COLORS.textDim }}>~{s.estimated_days} day{s.estimated_days !== 1 ? "s" : ""}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {services.length === 0 && (
+            <div style={{ textAlign: "center", padding: "80px 20px", color: COLORS.textDim }}>
+              <div style={{ fontSize: 40, marginBottom: 16 }}>💼</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.textMuted, marginBottom: 8 }}>No services yet</div>
+              <button onClick={onNew} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "10px 24px", color: COLORS.bg, fontSize: 14, fontWeight: 600, cursor: "pointer", marginTop: 12 }}>Add your first service</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -4387,6 +4763,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   const { docs, loading: docsLoading, saveDoc, deleteDoc } = useDocs();
   const { clients, saveClient, deleteClient } = useClients();
   const { services, saveService, deleteService } = useServices();
+  const { quotes, saveQuote, deleteQuote } = useQuotes();
   const { ideas, saveIdea, deleteIdea } = useIdeas();
   const [kitPendingMessage, setKitPendingMessage] = useState(null);
   const [editingService, setEditingService] = useState(null);
@@ -4696,6 +5073,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         {module === "services" && (
           <ServicesView
             services={services}
+            quotes={quotes}
             clients={clients}
             onEdit={(s) => setEditingService(s)}
             onNew={() => setShowNewService(true)}
@@ -4704,6 +5082,8 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
             currentUserId={currentUserId}
             saveDoc={saveDoc}
             showToast={showToast}
+            saveQuote={saveQuote}
+            deleteQuote={deleteQuote}
           />
         )}
 

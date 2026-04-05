@@ -513,6 +513,62 @@ export function useServices() {
   return { services, loading, saveService, deleteService }
 }
 
+// ─── Quotes Hook ──────────────────────────────────────────────────────────────
+export function useQuotes() {
+  const [quotes, setQuotes] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data, error } = await supabase
+        .from('quotes')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (!error && data) setQuotes(data)
+      setLoading(false)
+    }
+    fetch()
+  }, [])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('quotes-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setQuotes(prev => {
+            if (prev.find(q => q.id === payload.new.id)) return prev
+            return [payload.new, ...prev]
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setQuotes(prev => prev.map(q => q.id === payload.new.id ? payload.new : q))
+        } else if (payload.eventType === 'DELETE') {
+          setQuotes(prev => prev.filter(q => q.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [])
+
+  const saveQuote = useCallback(async (quote) => {
+    const row = { ...quote, updated_at: new Date().toISOString() }
+    const { error } = await supabase.from('quotes').upsert(row)
+    if (error) console.error('Save quote error:', error)
+    setQuotes(prev => {
+      const idx = prev.findIndex(q => q.id === quote.id)
+      if (idx >= 0) { const next = [...prev]; next[idx] = row; return next }
+      return [row, ...prev]
+    })
+  }, [])
+
+  const deleteQuote = useCallback(async (id) => {
+    const { error } = await supabase.from('quotes').delete().eq('id', id)
+    if (error) console.error('Delete quote error:', error)
+    setQuotes(prev => prev.filter(q => q.id !== id))
+  }, [])
+
+  return { quotes, loading, saveQuote, deleteQuote }
+}
+
 // ─── Ideas Hook ───────────────────────────────────────────────────────────────
 export function useIdeas() {
   const [ideas, setIdeas] = useState([])
