@@ -4610,7 +4610,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
         </div>
 
       {/* Content */}
-      <main style={{ marginLeft: 68, padding: 24, maxWidth: module === "planner" && view === "timeline" && !detailProject ? "none" : 1400, margin: "0 auto" }}>
+      <main style={{ marginLeft: 68, padding: 24, maxWidth: module === "planner" && view === "timeline" && !detailProject ? "none" : 1400 }}>
         {/* Dashboard */}
         {module === "home" && (
           <DashboardView
