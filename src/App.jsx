@@ -4538,7 +4538,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100vh", marginLeft: 68,
         background: COLORS.bg,
         color: COLORS.text,
         fontFamily: "'Plus Jakarta Sans', sans-serif",
