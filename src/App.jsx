@@ -4592,7 +4592,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
               { key: "docs", label: "Docs", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14v10H3z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 17h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { key: "clients", label: "Clients", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.5"/><path d="M3 17c0-3.866 3.134-6 7-6s7 2.134 7 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { key: "services", label: "Services", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5"/><path d="M10 6v8M6 10h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
-              { key: "ideas", label: "Ideas", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.5 5 5.5.8-4 3.9.9 5.5L10 14.5l-4.9 2.7.9-5.5L2 7.8 7.5 7z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> },
+
             ].map((m) => (
               <button key={m.key} onClick={() => setModule(m.key)} title={m.label} style={{ width: "100%", aspectRatio: "1", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "none", background: module === m.key ? "rgba(122,207,133,0.15)" : "transparent", color: module === m.key ? COLORS.accent : COLORS.textDim, transition: "all 0.15s" }}>
                 {m.icon}
@@ -4600,11 +4600,21 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
             ))}
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "14px 10px 0", borderTop: `0.5px solid ${COLORS.border}`, width: "100%" }}>
-            <button onClick={() => setKitOpen(v => !v)} style={{ width: 38, height: 38, background: COLORS.accent, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "none" }}>
+            <button onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} title="Toggle theme" style={{ width: 38, height: 38, background: "transparent", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "none", color: COLORS.textDim }}>
+              {theme === "dark"
+                ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              }
+            </button>
+            <button onClick={() => setShowNotifications(v => !v)} title="Notifications" style={{ width: 38, height: 38, background: "transparent", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "none", color: COLORS.textDim, position: "relative" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              {unreadCount > 0 && <span style={{ position: "absolute", top: 6, right: 6, width: 8, height: 8, borderRadius: "50%", background: COLORS.accent }}/>}
+            </button>
+            <button onClick={() => setKitOpen(v => !v)} title="Kit AI" style={{ width: 38, height: 38, background: COLORS.accent, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "none" }}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v8H2zM6 14h4" stroke="#0a2e0f" strokeWidth="1.5" strokeLinecap="round"/></svg>
             </button>
             <div onClick={onLogout} style={{ width: 38, height: 38, borderRadius: "50%", background: COLORS.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, color: "#0a2e0f", cursor: "pointer" }}>
-              {currentUser === "ludvig" ? "L" : "J"}
+              {currentUserId === "ludvig" ? "L" : "J"}
             </div>
           </div>
         </div>
