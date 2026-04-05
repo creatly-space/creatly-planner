@@ -4928,8 +4928,6 @@ function UserGate({ children }) {
           </button>
         </div>
       </div>
-    </div>
-      {/* Mobile bottom nav */}
       {isMobile && (
         <nav style={{position:"fixed",bottom:0,left:0,right:0,zIndex:999,background:COLORS.surface,borderTop:"1px solid "+COLORS.border,display:"flex",height:56,paddingBottom:"env(safe-area-inset-bottom)"}}>
           {[
@@ -4946,6 +4944,7 @@ function UserGate({ children }) {
           ))}
         </nav>
       )}
+    </div>
   );
 }
 
