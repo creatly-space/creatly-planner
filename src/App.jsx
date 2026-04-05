@@ -3195,7 +3195,7 @@ RULES:
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflow: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ flex: 1, overflow: "auto", paddingBottom: isMobile ? 56 : 0, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
         {messages.map((msg, i) => (
           <div key={i} style={{
             display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
@@ -4427,6 +4427,14 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
     try { localStorage.setItem("creatly_theme", theme); } catch(e) {}
   }, [theme]);
 
+  // Mobile responsive
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    const h = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+
   // Toast notification for other user's changes
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -4571,7 +4579,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
 
       {/* Top Bar */}
         {/* Sidebar nav */}
-        <div style={{
+        <div style={{ display: isMobile ? "none" : "flex",
           width: 68, flexShrink: 0, background: COLORS.surface,
           borderRight: `0.5px solid ${COLORS.border}`,
           display: "flex", flexDirection: "column", alignItems: "center",
@@ -4836,6 +4844,35 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.accent }} />
           <span style={{ fontSize: 13, color: COLORS.text }}>{toast}</span>
         </div>
+      )}
+      {isMobile && (
+        <nav style={{
+          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 999,
+          background: COLORS.surface, borderTop: "1px solid " + COLORS.border,
+          display: "flex", height: 56, paddingBottom: "env(safe-area-inset-bottom)",
+        }}>
+          {[
+            { k: "home", l: "Home", p: "M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" },
+            { k: "planner", l: "Projects", p: "M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z" },
+            { k: "docs", l: "Docs", p: "M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" },
+            { k: "clients", l: "Clients", p: "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" },
+            { k: "services", l: "Services", p: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" },
+          ].map(item => (
+            <button key={item.k} onClick={() => setModule(item.k)} style={{
+              flex: 1, display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center", gap: 2,
+              border: "none", cursor: "pointer", background: "transparent",
+              color: module === item.k ? COLORS.accent : COLORS.textMuted,
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d={item.p}/>
+              </svg>
+              <span style={{ fontSize: 9, fontWeight: module === item.k ? 600 : 400 }}>
+                {item.l}
+              </span>
+            </button>
+          ))}
+        </nav>
       )}
     </div>
   );
