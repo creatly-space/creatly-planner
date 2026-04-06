@@ -3745,10 +3745,20 @@ const QuoteEditor = ({ quote, services, clients, onSave, onDelete, onClose }) =>
 
   const handlePrint = () => {
     const html = buildQuoteHTML(form, netto, moms, total, validUntil());
-    const w = window.open("", "_blank");
+    const w = window.open("", "offert_preview", "width=860,height=900,scrollbars=yes,resizable=yes");
     w.document.write(html);
     w.document.close();
-    setTimeout(() => w.print(), 400);
+  };
+
+  const handleDownload = () => {
+    const html = buildQuoteHTML(form, netto, moms, total, validUntil());
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Offert-${form.number}-${form.client_name || "klient"}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleSave = () => {
@@ -3878,7 +3888,8 @@ const QuoteEditor = ({ quote, services, clients, onSave, onDelete, onClose }) =>
             {confirmDelete && <span style={{ fontSize: 13, color: COLORS.danger }}>Säker? <button onClick={() => { onDelete(form.id); onClose(); }} style={{ background: "none", border: "none", color: COLORS.danger, fontWeight: 700, cursor: "pointer" }}>Ja, ta bort</button> · <button onClick={() => setConfirmDelete(false)} style={{ background: "none", border: "none", color: COLORS.textMuted, cursor: "pointer" }}>Avbryt</button></span>}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={handlePrint} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 16px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>🖨 Förhandsgranska PDF</button>
+            <button onClick={handlePrint} style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: "8px 16px", color: COLORS.textMuted, fontSize: 13, cursor: "pointer" }}>🖨 Förhandsgranska</button>
+            <button onClick={handleDownload} style={{ background: "none", border: `1px solid ${COLORS.accent}`, borderRadius: 8, padding: "8px 16px", color: COLORS.accent, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>↓ Ladda ner PDF</button>
             <button onClick={handleSave} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "8px 20px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Spara</button>
           </div>
         </div>
@@ -3952,6 +3963,10 @@ function buildQuoteHTML(form, netto, moms, total, validUntil) {
 </style>
 </head>
 <body>
+<div style="position:sticky;top:0;z-index:100;background:#0b0d11;padding:12px 48px;display:flex;gap:10px;border-bottom:1px solid #1e2128;">
+  <button onclick="window.print()" style="background:#7ACF85;border:none;border-radius:6px;padding:8px 20px;color:#111318;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">🖨 Skriv ut / Spara som PDF</button>
+  <button onclick="window.close()" style="background:none;border:1px solid #1e2128;border-radius:6px;padding:8px 16px;color:#6b7280;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;cursor:pointer;">Stäng</button>
+</div>
 <div class="page">
   <div class="header">
     <div class="logo-block">
