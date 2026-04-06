@@ -3752,13 +3752,9 @@ const QuoteEditor = ({ quote, services, clients, onSave, onDelete, onClose }) =>
 
   const handleDownload = () => {
     const html = buildQuoteHTML(form, netto, moms, total, validUntil());
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Offert-${form.number}-${form.client_name || "klient"}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const w = window.open("", "offert_download", "width=860,height=900,scrollbars=yes,resizable=yes");
+    w.document.write(html);
+    w.document.close();
   };
 
   const handleSave = () => {
@@ -3908,9 +3904,9 @@ function buildQuoteHTML(form, netto, moms, total, validUntil) {
         <div class="item-name">${l.name || "—"}</div>
         ${l.description ? `<div class="item-desc">${l.description}</div>` : ""}
       </td>
-      <td>${l.qty}</td>
-      <td>${Number(l.price).toLocaleString("sv-SE")} kr</td>
-      <td style="color:#fff;font-weight:600;">${lineTotal.toLocaleString("sv-SE")} kr</td>
+      <td style="text-align:right;font-size:13px;color:#555;white-space:nowrap;">${l.qty}</td>
+      <td style="text-align:right;font-size:13px;color:#555;white-space:nowrap;">${Number(l.price).toLocaleString("sv-SE")} kr</td>
+      <td style="text-align:right;font-size:13px;font-weight:600;color:#111;white-space:nowrap;">${lineTotal.toLocaleString("sv-SE")} kr</td>
     </tr>`;
   }).join("");
 
@@ -3919,61 +3915,66 @@ function buildQuoteHTML(form, netto, moms, total, validUntil) {
 <head>
 <meta charset="UTF-8">
 <title>Offert #${form.number}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Plus Jakarta Sans',sans-serif;background:#111318;color:#e8e8e8;padding:48px;min-height:100vh}
-  .page{max-width:740px;margin:0 auto;background:#111318}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:48px;padding-bottom:28px;border-bottom:1px solid #1e2128}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:#f4f4f0;color:#111;min-height:100vh}
+  .toolbar{position:sticky;top:0;z-index:100;background:#fff;padding:10px 40px;display:flex;gap:8px;border-bottom:1px solid #e0e0e0;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+  .page{max-width:760px;margin:32px auto 64px;background:#fff;padding:64px 72px;box-shadow:0 2px 24px rgba(0,0,0,0.08)}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:48px;padding-bottom:28px;border-bottom:2px solid #111}
   .logo-block{display:flex;align-items:center;gap:12px}
-  .c-logo{width:36px;height:36px;background:#7ACF85;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#111318;flex-shrink:0}
-  .logo-name{font-size:16px;font-weight:700;color:#fff}
-  .logo-tag{font-size:11px;color:#4a4f5c}
-  .doc-type{font-size:11px;font-weight:600;color:#7ACF85;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;text-align:right}
-  .doc-number{font-size:20px;font-weight:700;color:#fff;text-align:right}
-  .doc-date{font-size:12px;color:#4a4f5c;text-align:right;margin-top:4px}
-  .addresses{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px}
-  .addr{background:#161920;border:1px solid #1e2128;border-radius:8px;padding:18px 22px}
-  .addr label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#4a4f5c;display:block;margin-bottom:8px}
-  .addr .name{font-weight:600;font-size:14px;margin-bottom:4px;color:#fff}
-  .addr p{font-size:12px;color:#6b7280;line-height:1.8}
-  .meta-strip{display:flex;border:1px solid #1e2128;border-radius:8px;overflow:hidden;margin-bottom:36px}
-  .meta-item{flex:1;padding:12px 18px;border-right:1px solid #1e2128}
+  .c-logo{width:38px;height:38px;background:#7ACF85;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#111;flex-shrink:0}
+  .logo-name{font-size:17px;font-weight:700;color:#111}
+  .logo-tag{font-size:11px;color:#999;margin-top:2px}
+  .doc-meta{text-align:right}
+  .doc-type{font-size:10px;font-weight:700;color:#7ACF85;letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}
+  .doc-number{font-size:22px;font-weight:700;color:#111}
+  .doc-date{font-size:12px;color:#999;margin-top:4px}
+  .addresses{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px}
+  .addr{padding:18px 20px;border:1px solid #e8e8e8;border-radius:6px;background:#fafafa}
+  .addr label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aaa;display:block;margin-bottom:8px}
+  .addr .name{font-weight:600;font-size:14px;margin-bottom:4px;color:#111}
+  .addr p{font-size:12px;color:#777;line-height:1.8}
+  .meta-strip{display:flex;border:1px solid #e8e8e8;border-radius:6px;overflow:hidden;margin-bottom:40px}
+  .meta-item{flex:1;padding:12px 18px;border-right:1px solid #e8e8e8;background:#fafafa}
   .meta-item:last-child{border-right:none}
-  .meta-item span:first-child{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#4a4f5c;display:block;margin-bottom:4px}
-  .meta-item span:last-child{font-size:13px;font-weight:500;color:#c8cdd8}
-  table{width:100%;border-collapse:collapse;margin-bottom:0}
-  thead th{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#4a4f5c;padding:0 0 12px 0;text-align:left;border-bottom:1px solid #1e2128}
+  .meta-item span:first-child{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aaa;display:block;margin-bottom:3px}
+  .meta-item span:last-child{font-size:13px;font-weight:500;color:#111}
+  table{width:100%;border-collapse:collapse}
+  thead th{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aaa;padding:0 0 10px 0;text-align:left;border-bottom:2px solid #111}
   thead th:nth-child(2),thead th:nth-child(3),thead th:nth-child(4){text-align:right}
-  tbody td{padding:18px 0;border-bottom:1px solid #161920;vertical-align:top}
-  tbody td:nth-child(2),tbody td:nth-child(3),tbody td:nth-child(4){text-align:right;font-size:13px;color:#c8cdd8;white-space:nowrap}
-  .item-name{font-weight:600;font-size:14px;color:#fff;margin-bottom:4px}
-  .item-desc{font-size:12px;color:#4a4f5c;line-height:1.6}
-  .totals-wrap{display:flex;justify-content:flex-end;margin-top:12px}
-  .totals{width:260px;border:1px solid #1e2128;border-radius:8px;overflow:hidden}
-  .total-row{display:flex;justify-content:space-between;padding:11px 18px;font-size:13px;color:#6b7280;border-bottom:1px solid #1e2128}
-  .total-row:last-child{border-bottom:none;background:#161920}
-  .total-row.grand span{font-size:15px;font-weight:700;color:#7ACF85}
-  .note{margin-top:40px;padding:18px 22px;background:#161920;border:1px solid #1e2128;border-radius:8px}
-  .note label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#4a4f5c;display:block;margin-bottom:8px}
-  .note p{font-size:13px;color:#6b7280;line-height:1.7}
-  .footer{margin-top:48px;padding-top:16px;border-top:1px solid #1e2128;display:flex;justify-content:space-between}
-  .footer p{font-size:11px;color:#2e3340}
-  @media print{body{padding:32px;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  tbody td{padding:16px 0;border-bottom:1px solid #f0f0f0;vertical-align:top}
+  .item-name{font-weight:600;font-size:14px;color:#111;margin-bottom:3px}
+  .item-desc{font-size:12px;color:#999;line-height:1.6}
+  .totals-wrap{display:flex;justify-content:flex-end;margin-top:16px}
+  .totals{width:260px}
+  .total-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;color:#777;border-bottom:1px solid #f0f0f0}
+  .total-row.grand{border-top:2px solid #111;border-bottom:none;padding-top:12px;margin-top:4px}
+  .total-row.grand span{font-size:16px;font-weight:700;color:#111}
+  .total-row.grand .amt{color:#7ACF85}
+  .note{margin-top:40px;padding:18px 20px;border:1px solid #e8e8e8;border-radius:6px;background:#fafafa}
+  .note label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aaa;display:block;margin-bottom:8px}
+  .note p{font-size:13px;color:#777;line-height:1.7}
+  .footer{margin-top:48px;padding-top:16px;border-top:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center}
+  .footer p{font-size:11px;color:#bbb}
+  .footer-dot{width:6px;height:6px;background:#7ACF85;border-radius:50%}
+  @media print{body{background:#fff}.toolbar{display:none}.page{box-shadow:none;margin:0;padding:48px 56px}-webkit-print-color-adjust:exact;print-color-adjust:exact}
 </style>
 </head>
 <body>
-<div style="position:sticky;top:0;z-index:100;background:#0b0d11;padding:12px 48px;display:flex;gap:10px;border-bottom:1px solid #1e2128;">
-  <button onclick="window.print()" style="background:#7ACF85;border:none;border-radius:6px;padding:8px 20px;color:#111318;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">🖨 Skriv ut / Spara som PDF</button>
-  <button onclick="window.close()" style="background:none;border:1px solid #1e2128;border-radius:6px;padding:8px 16px;color:#6b7280;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;cursor:pointer;">Stäng</button>
+<div class="toolbar">
+  <button onclick="downloadPDF()" style="background:#7ACF85;border:none;border-radius:6px;padding:8px 20px;color:#111;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">↓ Ladda ner PDF</button>
+  <button onclick="window.print()" style="background:none;border:1px solid #ddd;border-radius:6px;padding:8px 16px;color:#555;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;cursor:pointer;">🖨 Skriv ut</button>
+  <button onclick="window.close()" style="background:none;border:none;color:#aaa;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;cursor:pointer;margin-left:4px;">Stäng</button>
 </div>
-<div class="page">
+<div class="page" id="quote-content">
   <div class="header">
     <div class="logo-block">
       <div class="c-logo">C</div>
       <div><div class="logo-name">Creatly</div><div class="logo-tag">AI-First Creative Bureau</div></div>
     </div>
-    <div>
+    <div class="doc-meta">
       <div class="doc-type">Offert</div>
       <div class="doc-number">#${form.number}</div>
       <div class="doc-date">${issued}</div>
@@ -3996,12 +3997,31 @@ function buildQuoteHTML(form, netto, moms, total, validUntil) {
     <div class="totals">
       <div class="total-row"><span>Netto</span><span>${netto.toLocaleString("sv-SE")} kr</span></div>
       <div class="total-row"><span>Moms (25%)</span><span>${moms.toLocaleString("sv-SE")} kr</span></div>
-      <div class="total-row grand"><span>Totalt</span><span>${total.toLocaleString("sv-SE")} kr</span></div>
+      <div class="total-row grand"><span>Totalt att betala</span><span class="amt">${total.toLocaleString("sv-SE")} kr</span></div>
     </div>
   </div>
   ${form.note ? `<div class="note"><label>Meddelande</label><p>${form.note}</p></div>` : ""}
-  <div class="footer"><p>Creatly · creatly.se · ludvig@creatly.se</p><p>Offert #${form.number} · ${issued}</p></div>
+  <div class="footer">
+    <p>Creatly · creatly.se · ludvig@creatly.se</p>
+    <div class="footer-dot"></div>
+    <p>Offert #${form.number} · ${issued}</p>
+  </div>
 </div>
+<script>
+function downloadPDF() {
+  var btn = document.querySelector('.toolbar');
+  btn.style.display = 'none';
+  html2pdf().set({
+    margin: 0,
+    filename: 'Offert-${form.number}-${form.client_name || "klient"}.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(document.getElementById('quote-content')).save().then(function() {
+    btn.style.display = 'flex';
+  });
+}
+<\/script>
 </body></html>`;
 }
 
