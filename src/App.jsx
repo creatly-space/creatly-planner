@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications, useServices, useIdeas, useQuotes } from "./hooks";
+import { supabase } from "./supabase";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
