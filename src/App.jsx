@@ -2143,12 +2143,12 @@ const FOLDER_PRESETS = ["General", "Brand Guidelines", "SOPs", "Meeting Notes", 
 
 const DOC_TYPES = [
   { value: "general",        label: "General",        color: "#888" },
-  { value: "brand_identity", label: "Brand Identity",  color: "#7ACF85" },
-  { value: "brand_voice",    label: "Brand Voice",     color: "#7ACF85" },
-  { value: "services",       label: "Services",        color: "#60A5FA" },
-  { value: "case_study",     label: "Case Study",      color: "#F59E0B" },
-  { value: "sop",            label: "SOP",             color: "#A78BFA" },
-  { value: "strategy",       label: "Strategy",        color: "#F472B6" },
+  { value: "brand_identity", label: "Brand Identity", color: "#7ACF85" },
+  { value: "brand_voice",    label: "Brand Voice",    color: "#7ACF85" },
+  { value: "services",       label: "Services",       color: "#60A5FA" },
+  { value: "case_study",     label: "Case Study",     color: "#F59E0B" },
+  { value: "sop",            label: "SOP",            color: "#A78BFA" },
+  { value: "strategy",       label: "Strategy",       color: "#F472B6" },
 ];
 
 const DocsView = ({ docs, onSave, onDelete, theme }) => {
@@ -2187,7 +2187,6 @@ const DocsView = ({ docs, onSave, onDelete, theme }) => {
     if (docTypeFilter !== "all") {
       result = result.filter((d) => (d.doc_type || "general") === docTypeFilter);
     }
-    // Pinned docs first
     return [...result].sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
   }, [docs, search, folderFilter, docTypeFilter]);
 
@@ -2313,7 +2312,7 @@ const DocsView = ({ docs, onSave, onDelete, theme }) => {
           )}
         </div>
 
-        {/* Doc Type + Pin row */}
+        {/* Doc Type + Pin */}
         <div style={{ display: "flex", gap: 16, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Type:</span>
@@ -2335,10 +2334,9 @@ const DocsView = ({ docs, onSave, onDelete, theme }) => {
                 border: `1px solid ${editIsPinned ? COLORS.accent : COLORS.border}`,
                 borderRadius: 6, padding: "4px 12px", cursor: "pointer",
                 color: editIsPinned ? COLORS.accent : COLORS.textDim, fontSize: 12, fontWeight: 600,
-                display: "flex", alignItems: "center", gap: 5,
               }}
             >
-              📌 {editIsPinned ? "Pinned" : "Pin doc"}
+              {editIsPinned ? "📌 Pinned" : "Pin doc"}
             </button>
           </div>
         </div>
@@ -2454,11 +2452,10 @@ const DocsView = ({ docs, onSave, onDelete, theme }) => {
               style={{
                 background: doc.is_pinned ? `${COLORS.accent}0a` : COLORS.surface,
                 border: `1px solid ${doc.is_pinned ? COLORS.accent + "44" : COLORS.border}`,
-                borderRadius: 8,
-                padding: 16, cursor: "pointer", transition: "all 0.15s",
+                borderRadius: 8, padding: 16, cursor: "pointer", transition: "all 0.15s",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; e.currentTarget.style.borderColor = COLORS.borderLight; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = doc.is_pinned ? `${COLORS.accent}0a` : COLORS.surface; e.currentTarget.style.borderColor = doc.is_pinned ? COLORS.accent + "44" : COLORS.border; }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = doc.is_pinned ? `${COLORS.accent}0a` : COLORS.surface; }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                 <h3 style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, margin: 0, lineHeight: 1.3, flex: 1 }}>
@@ -2468,11 +2465,7 @@ const DocsView = ({ docs, onSave, onDelete, theme }) => {
                   {doc.folder}
                 </span>
               </div>
-              {(() => { const dt = DOC_TYPES.find(t => t.value === (doc.doc_type || "general")); return dt && dt.value !== "general" ? (
-                <span style={{ display: "inline-block", fontSize: 10, fontWeight: 600, color: dt.color, background: dt.color + "18", padding: "2px 7px", borderRadius: 10, marginBottom: 8, letterSpacing: "0.04em" }}>
-                  {dt.label}
-                </span>
-              ) : null; })()}
+              {(() => { const dt = DOC_TYPES.find(t => t.value === (doc.doc_type || "general")); return dt && dt.value !== "general" ? <span style={{ display: "inline-block", fontSize: 10, fontWeight: 600, color: dt.color, background: dt.color + "18", padding: "2px 7px", borderRadius: 10, marginBottom: 8 }}>{dt.label}</span> : null; })()}
               <p style={{ fontSize: 13, color: COLORS.textMuted, margin: 0, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                 {doc.summary || doc.content?.slice(0, 200) || "Empty document"}
               </p>
@@ -4853,20 +4846,20 @@ const IdeasModule = ({ ideas, clients, saveIdea, deleteIdea, currentUserId, onKi
   );
 };
 
+
 // ─── Social Media Manager ────────────────────────────────────────────────────
-const CHANNELS = [
-  { key: "linkedin",  label: "LinkedIn",  color: "#0A66C2", icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg> },
-  { key: "instagram", label: "Instagram", color: "#E1306C", icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg> },
-  { key: "tiktok",   label: "TikTok",    color: "#69C9D0", icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z"/></svg> },
-];
-
+const CHANNELS = ["linkedin", "instagram", "tiktok"];
+const CHANNEL_CONFIG = {
+  linkedin:  { label: "LinkedIn",  color: "#0A66C2" },
+  instagram: { label: "Instagram", color: "#E1306C" },
+  tiktok:    { label: "TikTok",    color: "#69C9D0" },
+};
 const PILLARS = [
-  { key: "show_the_work",   label: "Show the Work",   color: "#7ACF85" },
-  { key: "bold_statement",  label: "Bold Statement",  color: "#F59E0B" },
-  { key: "client_pov",      label: "Client POV",      color: "#60A5FA" },
-  { key: "category_pov",    label: "Category POV",    color: "#A78BFA" },
+  { key: "show_the_work",  label: "Show the Work",  color: "#7ACF85" },
+  { key: "bold_statement", label: "Bold Statement", color: "#F59E0B" },
+  { key: "client_pov",     label: "Client POV",     color: "#60A5FA" },
+  { key: "category_pov",   label: "Category POV",   color: "#A78BFA" },
 ];
-
 const POST_STATUS = {
   draft:     { label: "Draft",     color: "#888" },
   scheduled: { label: "Scheduled", color: "#F59E0B" },
@@ -4875,44 +4868,31 @@ const POST_STATUS = {
 
 const useSocialPosts = () => {
   const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
-    const fetch = async () => {
+    (async () => {
       const { data, error } = await supabase.from("social_posts").select("*").order("created_at", { ascending: false });
       if (!error && data) setPosts(data);
-      setLoading(false);
-    };
-    fetch();
+    })();
   }, []);
-
   useEffect(() => {
-    const channel = supabase.channel("social-posts-changes")
+    const ch = supabase.channel("social-posts-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "social_posts" }, (payload) => {
         if (payload.eventType === "INSERT") setPosts(prev => prev.find(p => p.id === payload.new.id) ? prev : [payload.new, ...prev]);
         else if (payload.eventType === "UPDATE") setPosts(prev => prev.map(p => p.id === payload.new.id ? payload.new : p));
         else if (payload.eventType === "DELETE") setPosts(prev => prev.filter(p => p.id !== payload.old.id));
       }).subscribe();
-    return () => supabase.removeChannel(channel);
+    return () => supabase.removeChannel(ch);
   }, []);
-
   const savePost = useCallback(async (post) => {
     const row = { ...post, updated_at: new Date().toISOString() };
-    const { error } = await supabase.from("social_posts").upsert(row);
-    if (error) console.error("Save post error:", error);
-    setPosts(prev => {
-      const idx = prev.findIndex(p => p.id === post.id);
-      if (idx >= 0) { const next = [...prev]; next[idx] = row; return next; }
-      return [row, ...prev];
-    });
+    await supabase.from("social_posts").upsert(row);
+    setPosts(prev => { const i = prev.findIndex(p => p.id === post.id); if (i >= 0) { const n = [...prev]; n[i] = row; return n; } return [row, ...prev]; });
   }, []);
-
   const deletePost = useCallback(async (id) => {
     await supabase.from("social_posts").delete().eq("id", id);
     setPosts(prev => prev.filter(p => p.id !== id));
   }, []);
-
-  return { posts, loading, savePost, deletePost };
+  return { posts, savePost, deletePost };
 };
 
 const SocialMediaManager = ({ docs, currentUserId }) => {
@@ -4927,116 +4907,57 @@ const SocialMediaManager = ({ docs, currentUserId }) => {
   const [researchLoading, setResearchLoading] = useState(false);
   const [researchResult, setResearchResult] = useState(null);
 
-  const inputStyle = {
-    background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`,
-    borderRadius: 6, padding: "8px 12px", color: COLORS.text,
-    fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box",
-  };
+  const inputStyle = { background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "8px 12px", color: COLORS.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" };
 
-  const brandContext = useMemo(() => {
-    const pinned = docs.filter(d => d.is_pinned);
-    return pinned.map(d => `## ${d.title} (${d.doc_type})\n${d.content}`).join("\n\n---\n\n");
-  }, [docs]);
+  const brandContext = useMemo(() => docs.filter(d => d.is_pinned).map(d => `## ${d.title}\n${d.content}`).join("\n\n---\n\n"), [docs]);
+  const filteredPosts = useMemo(() => activeChannel === "all" ? posts : posts.filter(p => p.channel === activeChannel), [posts, activeChannel]);
 
-  const filteredPosts = useMemo(() => {
-    if (activeChannel === "all") return posts;
-    return posts.filter(p => p.channel === activeChannel);
-  }, [posts, activeChannel]);
+  const calendarDays = useMemo(() => {
+    const now = new Date(); const year = now.getFullYear(); const month = now.getMonth();
+    return { daysInMonth: new Date(year, month + 1, 0).getDate(), firstDay: new Date(year, month, 1).getDay(), year, month };
+  }, []);
+
+  const postsByDate = useMemo(() => {
+    const map = {};
+    posts.forEach(p => { if (p.scheduled_date) { if (!map[p.scheduled_date]) map[p.scheduled_date] = []; map[p.scheduled_date].push(p); } });
+    return map;
+  }, [posts]);
 
   const handleGenerate = async () => {
-    setGenerating(true);
-    setGenResult(null);
-    const ch = CHANNELS.find(c => c.key === genChannel);
+    setGenerating(true); setGenResult(null);
+    const chConf = CHANNEL_CONFIG[genChannel];
     const pl = PILLARS.find(p => p.key === genPillar);
     try {
-      const res = await fetch("/api/claude", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1500,
+      const res = await fetch("/api/claude", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1500,
           tools: [{ type: "web_search_20250305", name: "web_search" }],
-          messages: [{
-            role: "user",
-            content: `You are Creatly's social media manager. Generate a ${ch.label} post for the content pillar: "${pl.label}".\n\nBRAND CONTEXT:\n${brandContext}\n\nCHANNEL: ${ch.label}\nPILLAR: ${pl.label}\n${genContext ? "EXTRA CONTEXT: " + genContext : ""}\n\nFirst do a quick web search for trending topics in AI creative or performance marketing this week. Use this to make the post timely if relevant.\n\nRespond with ONLY a JSON object (no markdown) with fields: copy, image_prompt, notes`
-          }]
-        }),
-      });
+          messages: [{ role: "user", content: `You are Creatly's social media manager. Generate a ${chConf.label} post for pillar: "${pl.label}".\n\nBRAND CONTEXT:\n${brandContext}\n\nCHANNEL: ${chConf.label}\nPILLAR: ${pl.label}\n${genContext ? "EXTRA CONTEXT: " + genContext : ""}\n\nFirst do a quick web search for trending topics in AI creative or performance marketing this week. Use this to make the post timely if relevant.\n\nRespond with ONLY a JSON object (no markdown fences) with fields: copy, image_prompt, notes` }] }) });
       const data = await res.json();
       const text = data.content?.filter(c => c.type === "text").map(c => c.text).join("") || "";
-      const clean = text.replace(/```json|```/g, "").trim();
-      setGenResult(JSON.parse(clean));
-    } catch (e) {
-      setGenResult({ copy: "Generation failed — try again.", image_prompt: "", notes: "" });
-    }
+      setGenResult(JSON.parse(text.replace(/```json|```/g, "").trim()));
+    } catch (e) { setGenResult({ copy: "Generation failed — try again.", image_prompt: "", notes: "" }); }
     setGenerating(false);
   };
 
   const handleResearch = async () => {
-    setResearchLoading(true);
-    setResearchResult(null);
+    setResearchLoading(true); setResearchResult(null);
     try {
-      const res = await fetch("/api/claude", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
+      const res = await fetch("/api/claude", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000,
           tools: [{ type: "web_search_20250305", name: "web_search" }],
-          messages: [{
-            role: "user",
-            content: "Search for the top 5 trending topics THIS WEEK in: AI-generated creative, performance marketing, Meta ads, AI content production, startup marketing. Return ONLY a JSON array (no markdown) like: [{\"topic\": \"...\", \"why_relevant\": \"...\", \"angle\": \"...\"}]"
-          }]
-        }),
-      });
+          messages: [{ role: "user", content: "Search for the top 5 trending topics THIS WEEK in: AI-generated creative, performance marketing, Meta ads, startup marketing. Return ONLY a JSON array (no markdown) like: [{\"topic\": \"...\", \"why_relevant\": \"...\", \"angle\": \"...\"}]" }] }) });
       const data = await res.json();
       const text = data.content?.filter(c => c.type === "text").map(c => c.text).join("") || "[]";
       setResearchResult(JSON.parse(text.replace(/```json|```/g, "").trim()));
-    } catch (e) {
-      setResearchResult([{ topic: "Research failed", why_relevant: "Try again", angle: "" }]);
-    }
+    } catch (e) { setResearchResult([{ topic: "Research failed", why_relevant: "Try again", angle: "" }]); }
     setResearchLoading(false);
   };
 
   const saveGenerated = () => {
     if (!genResult) return;
-    const post = {
-      id: crypto.randomUUID(),
-      channel: genChannel,
-      pillar: genPillar,
-      copy: genResult.copy,
-      image_prompt: genResult.image_prompt,
-      notes: genResult.notes,
-      status: "draft",
-      scheduled_date: null,
-      created_by: currentUserId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    savePost(post);
-    setGenResult(null);
-    setView("queue");
+    savePost({ id: crypto.randomUUID(), channel: genChannel, pillar: genPillar, copy: genResult.copy, image_prompt: genResult.image_prompt, notes: genResult.notes, status: "draft", scheduled_date: null, created_by: currentUserId, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+    setGenResult(null); setView("queue");
   };
-
-  const calendarDays = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDay = new Date(year, month, 1).getDay();
-    return { daysInMonth, firstDay, year, month };
-  }, []);
-
-  const postsByDate = useMemo(() => {
-    const map = {};
-    posts.forEach(p => {
-      if (p.scheduled_date) {
-        if (!map[p.scheduled_date]) map[p.scheduled_date] = [];
-        map[p.scheduled_date].push(p);
-      }
-    });
-    return map;
-  }, [posts]);
 
   return (
     <div>
@@ -5046,32 +4967,16 @@ const SocialMediaManager = ({ docs, currentUserId }) => {
           <p style={{ fontSize: 13, color: COLORS.textDim, margin: "4px 0 0" }}>AI-powered content for LinkedIn, Instagram & TikTok</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          {[
-            { v: "queue", label: "Queue" },
-            { v: "calendar", label: "Calendar" },
-            { v: "new", label: "+ Generate" },
-          ].map(({ v, label }) => (
-            <button key={v} onClick={() => setView(v)} style={{
-              background: view === v ? COLORS.accent : COLORS.surface,
-              border: `1px solid ${view === v ? COLORS.accent : COLORS.border}`,
-              borderRadius: 6, padding: "7px 14px", cursor: "pointer",
-              color: view === v ? COLORS.bg : COLORS.textMuted,
-              fontSize: 12, fontWeight: 600,
-            }}>{label}</button>
+          {[{ v: "queue", label: "Queue" }, { v: "calendar", label: "Calendar" }, { v: "new", label: "+ Generate" }].map(({ v, label }) => (
+            <button key={v} onClick={() => setView(v)} style={{ background: view === v ? COLORS.accent : COLORS.surface, border: `1px solid ${view === v ? COLORS.accent : COLORS.border}`, borderRadius: 6, padding: "7px 14px", cursor: "pointer", color: view === v ? COLORS.bg : COLORS.textMuted, fontSize: 12, fontWeight: 600 }}>{label}</button>
           ))}
         </div>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-        {[{ key: "all", label: "All Channels", color: COLORS.textDim, icon: null }, ...CHANNELS].map(c => (
-          <button key={c.key} onClick={() => setActiveChannel(c.key)} style={{
-            background: activeChannel === c.key ? c.color + "20" : "transparent",
-            border: `1px solid ${activeChannel === c.key ? c.color : COLORS.border}`,
-            borderRadius: 20, padding: "5px 14px", cursor: "pointer",
-            color: activeChannel === c.key ? c.color : COLORS.textDim,
-            fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6,
-          }}>
-            {c.icon} {c.label}
+        {[{ key: "all", label: "All Channels", color: COLORS.textDim }, ...CHANNELS.map(k => ({ key: k, ...CHANNEL_CONFIG[k] }))].map(c => (
+          <button key={c.key} onClick={() => setActiveChannel(c.key)} style={{ background: activeChannel === c.key ? c.color + "20" : "transparent", border: `1px solid ${activeChannel === c.key ? c.color : COLORS.border}`, borderRadius: 20, padding: "5px 14px", cursor: "pointer", color: activeChannel === c.key ? c.color : COLORS.textDim, fontSize: 12, fontWeight: 600 }}>
+            {c.label}
           </button>
         ))}
       </div>
@@ -5083,84 +4988,49 @@ const SocialMediaManager = ({ docs, currentUserId }) => {
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 11, color: COLORS.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>Channel</label>
               <div style={{ display: "flex", gap: 8 }}>
-                {CHANNELS.map(c => (
-                  <button key={c.key} onClick={() => setGenChannel(c.key)} style={{
-                    flex: 1, padding: "8px 4px", borderRadius: 6, cursor: "pointer",
-                    background: genChannel === c.key ? c.color + "20" : COLORS.surfaceActive,
-                    border: `1px solid ${genChannel === c.key ? c.color : COLORS.border}`,
-                    color: genChannel === c.key ? c.color : COLORS.textMuted,
-                    fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                  }}>
-                    {c.icon} {c.label}
+                {CHANNELS.map(k => { const c = CHANNEL_CONFIG[k]; return (
+                  <button key={k} onClick={() => setGenChannel(k)} style={{ flex: 1, padding: "8px 4px", borderRadius: 6, cursor: "pointer", background: genChannel === k ? c.color + "20" : COLORS.surfaceActive, border: `1px solid ${genChannel === k ? c.color : COLORS.border}`, color: genChannel === k ? c.color : COLORS.textMuted, fontSize: 11, fontWeight: 600 }}>
+                    {c.label}
                   </button>
-                ))}
+                ); })}
               </div>
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 11, color: COLORS.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>Content Pillar</label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                 {PILLARS.map(p => (
-                  <button key={p.key} onClick={() => setGenPillar(p.key)} style={{
-                    padding: "7px 10px", borderRadius: 6, cursor: "pointer",
-                    background: genPillar === p.key ? p.color + "20" : COLORS.surfaceActive,
-                    border: `1px solid ${genPillar === p.key ? p.color : COLORS.border}`,
-                    color: genPillar === p.key ? p.color : COLORS.textMuted,
-                    fontSize: 11, fontWeight: 600, textAlign: "left",
-                  }}>{p.label}</button>
+                  <button key={p.key} onClick={() => setGenPillar(p.key)} style={{ padding: "7px 10px", borderRadius: 6, cursor: "pointer", background: genPillar === p.key ? p.color + "20" : COLORS.surfaceActive, border: `1px solid ${genPillar === p.key ? p.color : COLORS.border}`, color: genPillar === p.key ? p.color : COLORS.textMuted, fontSize: 11, fontWeight: 600, textAlign: "left" }}>{p.label}</button>
                 ))}
               </div>
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, color: COLORS.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>Extra Context <span style={{ fontWeight: 400, textTransform: "none" }}>(optional)</span></label>
-              <textarea value={genContext} onChange={e => setGenContext(e.target.value)}
-                placeholder="e.g. 'We just onboarded a new fashion client' or 'React to the latest Meta ads update'"
-                style={{ ...inputStyle, minHeight: 80, resize: "vertical", lineHeight: 1.6 }} />
+              <textarea value={genContext} onChange={e => setGenContext(e.target.value)} placeholder="e.g. 'We just onboarded a fashion client'" style={{ ...inputStyle, minHeight: 80, resize: "vertical", lineHeight: 1.6 }} />
             </div>
             <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 12, padding: "8px 10px", background: COLORS.surfaceActive, borderRadius: 6 }}>
-              📌 Using {docs.filter(d => d.is_pinned).length} pinned brand docs as context
+              📌 {docs.filter(d => d.is_pinned).length} pinned brand docs in context
             </div>
-            <button onClick={handleGenerate} disabled={generating} style={{
-              width: "100%", background: generating ? COLORS.surfaceActive : COLORS.accent,
-              border: "none", borderRadius: 8, padding: "10px 0",
-              color: generating ? COLORS.textDim : COLORS.bg,
-              fontSize: 14, fontWeight: 700, cursor: generating ? "wait" : "pointer",
-            }}>
+            <button onClick={handleGenerate} disabled={generating} style={{ width: "100%", background: generating ? COLORS.surfaceActive : COLORS.accent, border: "none", borderRadius: 8, padding: "10px 0", color: generating ? COLORS.textDim : COLORS.bg, fontSize: 14, fontWeight: 700, cursor: generating ? "wait" : "pointer" }}>
               {generating ? "Researching & writing..." : "Generate Post"}
             </button>
           </div>
 
           <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 20 }}>
             <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700, color: COLORS.text }}>Result</h3>
-            {!genResult && !generating && (
-              <div style={{ color: COLORS.textDim, fontSize: 13, textAlign: "center", padding: "40px 0" }}>Configure and generate →</div>
-            )}
-            {generating && (
-              <div style={{ color: COLORS.textDim, fontSize: 13, textAlign: "center", padding: "40px 0" }}>
-                <div style={{ fontSize: 24, marginBottom: 12 }}>🔍</div>
-                Researching trends + writing copy...
-              </div>
-            )}
+            {!genResult && !generating && <div style={{ color: COLORS.textDim, fontSize: 13, textAlign: "center", padding: "40px 0" }}>Configure and generate →</div>}
+            {generating && <div style={{ color: COLORS.textDim, fontSize: 13, textAlign: "center", padding: "40px 0" }}><div style={{ fontSize: 24, marginBottom: 12 }}>🔍</div>Researching trends + writing copy...</div>}
             {genResult && (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
                   <label style={{ fontSize: 11, color: COLORS.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>Copy</label>
-                  <textarea value={genResult.copy} onChange={e => setGenResult(r => ({ ...r, copy: e.target.value }))}
-                    style={{ ...inputStyle, minHeight: 180, resize: "vertical", lineHeight: 1.7, fontFamily: "inherit" }} />
+                  <textarea value={genResult.copy} onChange={e => setGenResult(r => ({ ...r, copy: e.target.value }))} style={{ ...inputStyle, minHeight: 180, resize: "vertical", lineHeight: 1.7, fontFamily: "inherit" }} />
                 </div>
                 <div>
                   <label style={{ fontSize: 11, color: COLORS.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>Image Prompt</label>
-                  <textarea value={genResult.image_prompt} onChange={e => setGenResult(r => ({ ...r, image_prompt: e.target.value }))}
-                    style={{ ...inputStyle, minHeight: 80, resize: "vertical", lineHeight: 1.6, fontFamily: "inherit" }} />
+                  <textarea value={genResult.image_prompt} onChange={e => setGenResult(r => ({ ...r, image_prompt: e.target.value }))} style={{ ...inputStyle, minHeight: 80, resize: "vertical", lineHeight: 1.6, fontFamily: "inherit" }} />
                 </div>
-                {genResult.notes && (
-                  <div style={{ fontSize: 12, color: COLORS.textDim, background: COLORS.surfaceActive, borderRadius: 6, padding: "8px 10px" }}>
-                    💡 {genResult.notes}
-                  </div>
-                )}
-                <button onClick={saveGenerated} style={{
-                  background: COLORS.accent, border: "none", borderRadius: 8,
-                  padding: "10px 0", color: COLORS.bg, fontSize: 13, fontWeight: 700, cursor: "pointer",
-                }}>Save as Draft</button>
+                {genResult.notes && <div style={{ fontSize: 12, color: COLORS.textDim, background: COLORS.surfaceActive, borderRadius: 6, padding: "8px 10px" }}>💡 {genResult.notes}</div>}
+                <button onClick={saveGenerated} style={{ background: COLORS.accent, border: "none", borderRadius: 8, padding: "10px 0", color: COLORS.bg, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Save as Draft</button>
               </div>
             )}
           </div>
@@ -5168,16 +5038,11 @@ const SocialMediaManager = ({ docs, currentUserId }) => {
           <div style={{ gridColumn: "1 / -1", background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.text }}>🔥 Hot Topics</h3>
-              <button onClick={handleResearch} disabled={researchLoading} style={{
-                background: researchLoading ? COLORS.surfaceActive : COLORS.accent + "15",
-                border: `1px solid ${COLORS.accent}44`, borderRadius: 6,
-                padding: "6px 14px", cursor: researchLoading ? "wait" : "pointer",
-                color: COLORS.accent, fontSize: 12, fontWeight: 600,
-              }}>{researchLoading ? "Researching..." : "Research Now"}</button>
+              <button onClick={handleResearch} disabled={researchLoading} style={{ background: COLORS.accent + "15", border: `1px solid ${COLORS.accent}44`, borderRadius: 6, padding: "6px 14px", cursor: researchLoading ? "wait" : "pointer", color: COLORS.accent, fontSize: 12, fontWeight: 600 }}>
+                {researchLoading ? "Researching..." : "Research Now"}
+              </button>
             </div>
-            {!researchResult && !researchLoading && (
-              <p style={{ color: COLORS.textDim, fontSize: 13, margin: 0 }}>Click "Research Now" to fetch trending topics in AI creative & performance marketing.</p>
-            )}
+            {!researchResult && !researchLoading && <p style={{ color: COLORS.textDim, fontSize: 13, margin: 0 }}>Click "Research Now" to fetch trending topics in AI creative & performance marketing.</p>}
             {researchLoading && <p style={{ color: COLORS.textDim, fontSize: 13, margin: 0 }}>Searching the web for this week's trends...</p>}
             {researchResult && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
@@ -5186,11 +5051,7 @@ const SocialMediaManager = ({ docs, currentUserId }) => {
                     <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginBottom: 4 }}>{t.topic}</div>
                     <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6 }}>{t.why_relevant}</div>
                     {t.angle && <div style={{ fontSize: 11, color: COLORS.accent, fontWeight: 600 }}>→ {t.angle}</div>}
-                    <button onClick={() => { setGenContext(t.topic + ": " + t.angle); }} style={{
-                      marginTop: 8, background: "none", border: `1px solid ${COLORS.border}`,
-                      borderRadius: 4, padding: "4px 10px", cursor: "pointer",
-                      color: COLORS.textDim, fontSize: 11,
-                    }}>Use as context</button>
+                    <button onClick={() => setGenContext(t.topic + ": " + t.angle)} style={{ marginTop: 8, background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 4, padding: "4px 10px", cursor: "pointer", color: COLORS.textDim, fontSize: 11 }}>Use as context</button>
                   </div>
                 ))}
               </div>
@@ -5204,40 +5065,30 @@ const SocialMediaManager = ({ docs, currentUserId }) => {
           {filteredPosts.length === 0 ? (
             <div style={{ textAlign: "center", padding: 60, color: COLORS.textDim }}>
               <p style={{ fontSize: 14, marginBottom: 8 }}>No posts yet</p>
-              <button onClick={() => setView("new")} style={{
-                background: COLORS.accent, border: "none", borderRadius: 6,
-                padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer",
-              }}>Generate your first post</button>
+              <button onClick={() => setView("new")} style={{ background: COLORS.accent, border: "none", borderRadius: 6, padding: "8px 18px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Generate your first post</button>
             </div>
           ) : filteredPosts.map(post => {
-            const ch = CHANNELS.find(c => c.key === post.channel);
+            const chConf = CHANNEL_CONFIG[post.channel] || {};
             const pl = PILLARS.find(p => p.key === post.pillar);
             const st = POST_STATUS[post.status];
             return (
-              <div key={post.id} style={{
-                background: COLORS.surface, border: `1px solid ${COLORS.border}`,
-                borderRadius: 10, padding: 16, borderLeft: `3px solid ${ch?.color || COLORS.border}`,
-              }}>
+              <div key={post.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 16, borderLeft: `3px solid ${chConf.color || COLORS.border}` }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: ch?.color }}>{ch?.icon} {ch?.label}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: chConf.color }}>{chConf.label}</span>
                       {pl && <span style={{ fontSize: 11, color: pl.color, background: pl.color + "18", padding: "2px 8px", borderRadius: 10, fontWeight: 600 }}>{pl.label}</span>}
                       <span style={{ fontSize: 11, color: st?.color, background: st?.color + "18", padding: "2px 8px", borderRadius: 10, fontWeight: 600 }}>{st?.label}</span>
                       {post.scheduled_date && <span style={{ fontSize: 11, color: COLORS.textDim }}>📅 {post.scheduled_date}</span>}
                     </div>
                     <p style={{ fontSize: 13, color: COLORS.text, margin: 0, lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{post.copy}</p>
-                    {post.image_prompt && (
-                      <p style={{ fontSize: 11, color: COLORS.textDim, margin: "6px 0 0", fontStyle: "italic" }}>🎨 {post.image_prompt?.slice(0, 120)}{post.image_prompt?.length > 120 ? "..." : ""}</p>
-                    )}
+                    {post.image_prompt && <p style={{ fontSize: 11, color: COLORS.textDim, margin: "6px 0 0", fontStyle: "italic" }}>🎨 {post.image_prompt?.slice(0, 120)}{post.image_prompt?.length > 120 ? "..." : ""}</p>}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
-                    <select value={post.status} onChange={e => savePost({ ...post, status: e.target.value })}
-                      style={{ background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "4px 8px", color: COLORS.text, fontSize: 11, cursor: "pointer" }}>
+                    <select value={post.status} onChange={e => savePost({ ...post, status: e.target.value })} style={{ background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "4px 8px", color: COLORS.text, fontSize: 11, cursor: "pointer" }}>
                       {Object.entries(POST_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
-                    <input type="date" value={post.scheduled_date || ""} onChange={e => savePost({ ...post, scheduled_date: e.target.value || null })}
-                      style={{ background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "4px 8px", color: COLORS.textDim, fontSize: 11 }} />
+                    <input type="date" value={post.scheduled_date || ""} onChange={e => savePost({ ...post, scheduled_date: e.target.value || null })} style={{ background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "4px 8px", color: COLORS.textDim, fontSize: 11 }} />
                     <button onClick={() => deletePost(post.id)} style={{ background: "none", border: `1px solid ${COLORS.danger}33`, borderRadius: 6, padding: "4px 8px", color: COLORS.danger, fontSize: 11, cursor: "pointer" }}>Delete</button>
                   </div>
                 </div>
@@ -5253,9 +5104,7 @@ const SocialMediaManager = ({ docs, currentUserId }) => {
             {new Date(calendarDays.year, calendarDays.month).toLocaleString("default", { month: "long", year: "numeric" })}
           </h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 8 }}>
-            {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
-              <div key={d} style={{ fontSize: 11, fontWeight: 600, color: COLORS.textDim, textAlign: "center", padding: "6px 0" }}>{d}</div>
-            ))}
+            {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => <div key={d} style={{ fontSize: 11, fontWeight: 600, color: COLORS.textDim, textAlign: "center", padding: "6px 0" }}>{d}</div>)}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
             {[...Array(calendarDays.firstDay)].map((_, i) => <div key={"e"+i} />)}
@@ -5268,12 +5117,8 @@ const SocialMediaManager = ({ docs, currentUserId }) => {
                 <div key={day} style={{ minHeight: 80, background: COLORS.surface, border: `1px solid ${isToday ? COLORS.accent : COLORS.border}`, borderRadius: 6, padding: 6 }}>
                   <div style={{ fontSize: 11, fontWeight: isToday ? 700 : 400, color: isToday ? COLORS.accent : COLORS.textDim, marginBottom: 4 }}>{day}</div>
                   {dayPosts.slice(0,3).map(p => {
-                    const ch = CHANNELS.find(c => c.key === p.channel);
-                    return (
-                      <div key={p.id} style={{ fontSize: 10, padding: "2px 5px", borderRadius: 3, marginBottom: 2, background: (ch?.color||"#888")+"20", color: ch?.color||COLORS.textDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {ch?.label}: {p.copy?.slice(0,30)}...
-                      </div>
-                    );
+                    const chConf = CHANNEL_CONFIG[p.channel] || {};
+                    return <div key={p.id} style={{ fontSize: 10, padding: "2px 5px", borderRadius: 3, marginBottom: 2, background: (chConf.color||"#888")+"20", color: chConf.color||COLORS.textDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chConf.label}: {p.copy?.slice(0,25)}...</div>;
                   })}
                 </div>
               );
@@ -5499,7 +5344,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
               { key: "docs", label: "Docs", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14v10H3z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 17h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { key: "clients", label: "Clients", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.5"/><path d="M3 17c0-3.866 3.134-6 7-6s7 2.134 7 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { key: "services", label: "Services", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5"/><path d="M10 6v8M6 10h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
-              { key: "social", label: "Social Media", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5"/><path d="M10 6v4l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { key: "social", label: "Social Media", icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="5" cy="10" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="15" cy="5" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="15" cy="15" r="2" stroke="currentColor" strokeWidth="1.5"/><path d="M7 9l6-3M7 11l6 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
 
             ].map((m) => (
               <button key={m.key} onClick={() => setModule(m.key)} title={m.label} style={{ width: "100%", aspectRatio: "1", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "none", background: module === m.key ? "rgba(122,207,133,0.15)" : "transparent", color: module === m.key ? COLORS.accent : COLORS.textDim, transition: "all 0.15s" }}>
@@ -5591,7 +5436,7 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
 
         {/* Social Media Manager */}
         {module === "social" && (
-          <SocialMediaManager docs={docs} currentUserId={currentUserId} theme={theme} />
+          <SocialMediaManager docs={docs} currentUserId={currentUserId} />
         )}
 
         {/* Clients view */}
