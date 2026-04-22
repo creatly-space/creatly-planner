@@ -4864,12 +4864,25 @@ ${brandCtx}
 - Client POV: Results, case studies, social proof (anonymise if needed)
 - Category POV: Where AI creative is going, what traditional agencies get wrong
 
+## Tone of Voice
+- Confident but grounded. We know what we do — we don't exaggerate what we haven't done yet.
+- Direct, clean, no fluff. Every word earns its place.
+- We have opinions. We share them clearly. We don't shout.
+- Never corporate, never cringe-humble, never fake-excited.
+
 ## Planning Principles
 1. Vary pillars — never repeat the same pillar back-to-back
 2. Consider what's trending in AI creative / performance marketing this week
 3. Build narrative arc across the week — not random posts
 4. Each post must have a clear "why this, why now" rationale
-5. LinkedIn gets the most strategic content, Instagram visual showcase, TikTok raw/real`;
+5. LinkedIn gets the most strategic content, Instagram visual showcase, TikTok raw/real
+
+## CRITICAL RULES — NEVER BREAK THESE
+- NEVER invent statistics, client counts, revenue figures, or specific results (e.g. "47 clients", "300% ROAS")
+- NEVER fabricate case studies or client names
+- If you don't have real data from the brand docs or project history, speak in principles and possibilities — not made-up proof points
+- Only reference real, specific claims if they exist in the brand context provided
+- When in doubt: be bold in perspective, humble in claims`;
 };
 
 const SocialMediaManager = ({ docs, currentUserId }) => {
@@ -4903,6 +4916,53 @@ const SocialMediaManager = ({ docs, currentUserId }) => {
   }, [posts]);
 
   // ── Weekly Planner ──
+  const [planQuestions, setPlanQuestions] = useState(null);
+  const [planAnswers, setPlanAnswers] = useState({});
+  const [askedQuestions, setAskedQuestions] = useState(false);
+
+  const handleAskQuestions = async () => {
+    setPlanLoading(true);
+    setPlanQuestions(null);
+    const total = Object.values(planConfig.counts).reduce((a, b) => a + b, 0);
+    const channelBreakdown = Object.entries(planConfig.counts)
+      .filter(([, n]) => n > 0)
+      .map(([k, n]) => `${CH[k].label}: ${n} posts`).join(", ");
+    try {
+      const res = await fetch("/api/claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 800,
+          messages: [{
+            role: "user",
+            content: `${agentBrief}
+
+You are about to plan a week of social media content: ${total} posts (${channelBreakdown}).
+Week starting: ${planConfig.weekStart}
+${planConfig.focus ? `Stated focus: ${planConfig.focus}` : "No specific focus stated."}
+Recent posts: ${recentPostsSummary || "None yet"}
+
+Before planning, identify 2-3 short clarifying questions that would significantly improve the quality of the week plan. Only ask if genuinely useful — skip obvious things. Questions should be specific and answerable in 1-2 sentences.
+
+Respond with ONLY a JSON array (no markdown): [{"id": "q1", "question": "..."}]`
+          }]
+        }),
+      });
+      const data = await res.json();
+      const text = data.content?.filter(c => c.type === "text").map(c => c.text).join("") || "[]";
+      const qs = JSON.parse(text.replace(/```json|```/g, "").trim());
+      setPlanQuestions(qs);
+      setPlanAnswers(Object.fromEntries(qs.map(q => [q.id, ""])));
+      setAskedQuestions(true);
+    } catch (e) {
+      setAskedQuestions(true);
+      setPlanQuestions([]);
+      handlePlan();
+    }
+    setPlanLoading(false);
+  };
+
   const handlePlan = async () => {
     setPlanLoading(true);
     setPlanPreview(null);
@@ -4928,6 +4988,9 @@ const SocialMediaManager = ({ docs, currentUserId }) => {
 Week starting: ${planConfig.weekStart}
 Total posts: ${total} (${channelBreakdown})
 ${planConfig.focus ? `Strategic focus this week: ${planConfig.focus}` : ""}
+
+${Object.keys(planAnswers).length > 0 && planQuestions ? `Clarifying answers provided:
+${planQuestions.filter(q => planAnswers[q.id]?.trim()).map(q => `Q: ${q.question}\nA: ${planAnswers[q.id]}`).join("\n\n")}` : ""}
 
 Recent posts (avoid repetition):
 ${recentPostsSummary || "None yet"}
@@ -5198,7 +5261,7 @@ Update the post accordingly. Respond with ONLY a JSON object (no markdown):
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
               <div>
                 <label style={{ fontSize: 11, color: COLORS.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>Week Starting</label>
-                <input type="date" value={planConfig.weekStart} onChange={e => setPlanConfig(c => ({ ...c, weekStart: e.target.value }))} style={{ ...inp }} />
+                <input type="date" value={planConfig.weekStart} onChange={e => { setPlanConfig(c => ({ ...c, weekStart: e.target.value })); setAskedQuestions(false); setPlanQuestions(null); }} style={{ ...inp }} />
               </div>
               {Object.entries(CH).map(([k, v]) => (
                 <div key={k}>
@@ -5221,14 +5284,43 @@ Update the post accordingly. Respond with ONLY a JSON object (no markdown):
               📌 {docs.filter(d => d.is_pinned).length} pinned brand docs · {posts.length} existing posts in queue (agent will avoid repetition)
             </div>
 
-            <button onClick={handlePlan} disabled={planLoading || Object.values(planConfig.counts).every(n => n === 0)} style={{
-              width: "100%", background: planLoading ? COLORS.surfaceActive : COLORS.accent,
-              border: "none", borderRadius: 8, padding: "11px 0",
-              color: planLoading ? COLORS.textDim : COLORS.bg, fontSize: 14, fontWeight: 700,
-              cursor: planLoading ? "wait" : "pointer",
-            }}>
-              {planLoading ? "Agent is researching & planning..." : `Plan ${Object.values(planConfig.counts).reduce((a,b)=>a+b,0)} posts for this week`}
-            </button>
+            {/* Clarifying questions */}
+            {askedQuestions && planQuestions && planQuestions.length > 0 && !planPreview && (
+              <div style={{ background: COLORS.surfaceActive, borderRadius: 8, padding: 16, marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent, marginBottom: 12 }}>
+                  ✦ Agent has a few questions before planning:
+                </div>
+                {planQuestions.map(q => (
+                  <div key={q.id} style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 12, color: COLORS.text, display: "block", marginBottom: 5 }}>{q.question}</label>
+                    <input
+                      value={planAnswers[q.id] || ""}
+                      onChange={e => setPlanAnswers(a => ({ ...a, [q.id]: e.target.value }))}
+                      placeholder="Your answer..."
+                      style={{ ...inp, fontSize: 12 }}
+                    />
+                  </div>
+                ))}
+                <button onClick={handlePlan} disabled={planLoading} style={{
+                  width: "100%", background: planLoading ? COLORS.surfaceActive : COLORS.accent,
+                  border: "none", borderRadius: 8, padding: "10px 0",
+                  color: planLoading ? COLORS.textDim : COLORS.bg, fontSize: 13, fontWeight: 700, cursor: planLoading ? "wait" : "pointer",
+                }}>
+                  {planLoading ? "Agent is planning..." : "Generate plan with your answers →"}
+                </button>
+              </div>
+            )}
+
+            {(!askedQuestions || !planQuestions) && (
+              <button onClick={handleAskQuestions} disabled={planLoading || Object.values(planConfig.counts).every(n => n === 0)} style={{
+                width: "100%", background: planLoading ? COLORS.surfaceActive : COLORS.accent,
+                border: "none", borderRadius: 8, padding: "11px 0",
+                color: planLoading ? COLORS.textDim : COLORS.bg, fontSize: 14, fontWeight: 700,
+                cursor: planLoading ? "wait" : "pointer",
+              }}>
+                {planLoading ? "Agent is thinking..." : `Start planning ${Object.values(planConfig.counts).reduce((a,b)=>a+b,0)} posts →`}
+              </button>
+            )}
           </div>
 
           {/* Plan preview */}
