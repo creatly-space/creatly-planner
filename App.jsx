@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useProjects, useTagColors, useAppSettings, useDocs, useTodos, useClients, useNotifications, useServices, useIdeas, useQuotes } from "./hooks";
+import { supabase } from "./supabase";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -5266,48 +5267,81 @@ function ProjectPlanner({ currentUser, currentUserId, onLogout }) {
   );
 }
 
-// ─── User Login Gate ─────────────────────────────────────────────────────────
-const USERS = {
-  ludvig: { name: "Ludvig", password: "ludvig" },
-  johannes: { name: "Johannes", password: "johannes" },
+// ─── User Login Gate (Supabase Auth) ─────────────────────────────────────────
+// Email -> internal userId mapping. Keeps all existing data/logic working
+// since DB uses "ludvig"/"johannes" as string IDs in updated_by, assignee, etc.
+const EMAIL_TO_USER = {
+  "ludvig@creatly.se": { id: "ludvig", name: "Ludvig" },
+  "johannes@creatly.se": { id: "johannes", name: "Johannes" },
 };
-const USER_KEY = "creatly_user";
 
 function UserGate({ children }) {
-  const [user, setUser] = useState(null);
-  const [input, setInput] = useState("");
-  const [error, setError] = useState(false);
+  const [session, setSession] = useState(null);
   const [checking, setChecking] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = window.sessionStorage.getItem(USER_KEY);
-      if (stored && USERS[stored]) setUser(stored);
-    } catch (e) {}
-    setChecking(false);
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setChecking(false);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  const handleSubmit = () => {
-    const entry = Object.entries(USERS).find(([, u]) => u.password === input);
-    if (entry) {
-      const [key] = entry;
-      try { window.sessionStorage.setItem(USER_KEY, key); } catch (e) {}
-      setUser(key);
-      setError(false);
-    } else {
-      setError(true);
-      setInput("");
+  const handleSubmit = async () => {
+    if (!email || !password) return;
+    setSubmitting(true);
+    setError("");
+    const { error: signErr } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    if (signErr) {
+      setError("Wrong email or password");
+      setPassword("");
     }
+    setSubmitting(false);
   };
 
-  const handleLogout = () => {
-    try { window.sessionStorage.removeItem(USER_KEY); } catch (e) {}
-    setUser(null);
-    setInput("");
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setEmail("");
+    setPassword("");
   };
 
   if (checking) return null;
-  if (user) return children({ user: USERS[user], userId: user, onLogout: handleLogout });
+
+  if (session) {
+    const userEmail = session.user?.email?.toLowerCase();
+    const mapped = userEmail ? EMAIL_TO_USER[userEmail] : null;
+    if (!mapped) {
+      // Logged in but email not whitelisted — log out and show error
+      return (
+        <div style={{
+          minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: "'Plus Jakarta Sans', sans-serif", flexDirection: "column", gap: 16, padding: 24,
+        }}>
+          <p style={{ color: COLORS.text, fontSize: 15 }}>This account is not authorized for Creatly Planner.</p>
+          <button
+            onClick={handleLogout}
+            style={{
+              background: COLORS.accent, border: "none", borderRadius: 8, padding: "10px 20px",
+              color: COLORS.bg, fontSize: 14, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+      );
+    }
+    return children({ user: mapped, userId: mapped.id, onLogout: handleLogout });
+  }
 
   return (
     <div style={{
@@ -5322,27 +5356,43 @@ function UserGate({ children }) {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <input
-            type="password"
-            value={input}
-            onChange={(e) => { setInput(e.target.value); setError(false); }}
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(""); }}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            placeholder="Your password"
+            placeholder="Email"
             autoFocus
+            autoComplete="email"
             style={{
               background: COLORS.surfaceActive, border: `1px solid ${error ? COLORS.danger : COLORS.border}`,
               borderRadius: 8, padding: "12px 16px", color: COLORS.text, fontSize: 15, outline: "none",
-              width: "100%", boxSizing: "border-box", textAlign: "center", letterSpacing: "0.1em",
+              width: "100%", boxSizing: "border-box",
             }}
           />
-          {error && <p style={{ color: COLORS.danger, fontSize: 13, textAlign: "center", margin: 0 }}>Wrong password</p>}
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError(""); }}
+            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+            placeholder="Password"
+            autoComplete="current-password"
+            style={{
+              background: COLORS.surfaceActive, border: `1px solid ${error ? COLORS.danger : COLORS.border}`,
+              borderRadius: 8, padding: "12px 16px", color: COLORS.text, fontSize: 15, outline: "none",
+              width: "100%", boxSizing: "border-box",
+            }}
+          />
+          {error && <p style={{ color: COLORS.danger, fontSize: 13, textAlign: "center", margin: 0 }}>{error}</p>}
           <button
             onClick={handleSubmit}
+            disabled={submitting}
             style={{
               background: COLORS.accent, border: "none", borderRadius: 8, padding: "12px 24px",
-              color: COLORS.bg, fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%",
+              color: COLORS.bg, fontSize: 14, fontWeight: 600, cursor: submitting ? "default" : "pointer",
+              width: "100%", opacity: submitting ? 0.6 : 1,
             }}
           >
-            Sign in
+            {submitting ? "Signing in…" : "Sign in"}
           </button>
         </div>
       </div>
