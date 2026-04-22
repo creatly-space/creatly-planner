@@ -5258,7 +5258,7 @@ Update the post accordingly. Respond with ONLY a JSON object (no markdown):
               The agent will research trending topics, review your brand docs, analyse your recent posts, and build a full week of content with strategic rationale for each post.
             </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 16 }}>
               <div>
                 <label style={{ fontSize: 11, color: COLORS.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>Week Starting</label>
                 <input type="date" value={planConfig.weekStart} onChange={e => { setPlanConfig(c => ({ ...c, weekStart: e.target.value })); setAskedQuestions(false); setPlanQuestions(null); }} style={{ ...inp }} />
