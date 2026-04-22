@@ -2142,13 +2142,26 @@ const ListView = ({ projects, onSelect }) => (
 // ─── Docs / Knowledge Base View ─────────────────────────────────────────────
 const FOLDER_PRESETS = ["General", "Brand Guidelines", "SOPs", "Meeting Notes", "Templates", "Strategy"];
 
+const DOC_TYPES = [
+  { value: "general",        label: "General",        color: "#888" },
+  { value: "brand_identity", label: "Brand Identity", color: "#7ACF85" },
+  { value: "brand_voice",    label: "Brand Voice",    color: "#7ACF85" },
+  { value: "services",       label: "Services",       color: "#60A5FA" },
+  { value: "case_study",     label: "Case Study",     color: "#F59E0B" },
+  { value: "sop",            label: "SOP",            color: "#A78BFA" },
+  { value: "strategy",       label: "Strategy",       color: "#F472B6" },
+];
+
 const DocsView = ({ docs, onSave, onDelete, theme }) => {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editFolder, setEditFolder] = useState("General");
+  const [editDocType, setEditDocType] = useState("general");
+  const [editIsPinned, setEditIsPinned] = useState(false);
   const [search, setSearch] = useState("");
   const [folderFilter, setFolderFilter] = useState("all");
+  const [docTypeFilter, setDocTypeFilter] = useState("all");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -2173,13 +2186,17 @@ const DocsView = ({ docs, onSave, onDelete, theme }) => {
       result = result.filter((d) => d.folder === folderFilter);
     }
     return result;
-  }, [docs, search, folderFilter]);
+    if (docTypeFilter !== "all") result = result.filter(d => (d.doc_type || "general") === docTypeFilter);
+    return [...result].sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
+  }, [docs, search, folderFilter, docTypeFilter]);
 
   const selectDoc = (doc) => {
     setSelectedDoc(doc);
     setEditTitle(doc.title);
     setEditContent(doc.content || "");
     setEditFolder(doc.folder || "General");
+    setEditDocType(doc.doc_type || "general");
+    setEditIsPinned(doc.is_pinned || false);
     setConfirmDelete(false);
   };
 
@@ -2189,6 +2206,9 @@ const DocsView = ({ docs, onSave, onDelete, theme }) => {
       title: "Untitled Document",
       content: "",
       folder: folderFilter !== "all" ? folderFilter : "General",
+      doc_type: docTypeFilter !== "all" ? docTypeFilter : "general",
+      is_pinned: false,
+      summary: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -2292,6 +2312,24 @@ const DocsView = ({ docs, onSave, onDelete, theme }) => {
           )}
         </div>
 
+        {/* Doc Type + Pin */}
+        <div style={{ display: "flex", gap: 16, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Type:</span>
+            <select value={editDocType} onChange={(e) => { setEditDocType(e.target.value); setTimeout(handleSave, 0); }}
+              style={{ ...inputStyle, width: "auto", appearance: "none", cursor: "pointer", padding: "4px 12px", color: DOC_TYPES.find(t => t.value === editDocType)?.color || COLORS.text }}>
+              {DOC_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Pin:</span>
+            <button onClick={() => { const next = !editIsPinned; setEditIsPinned(next); onSave({ ...selectedDoc, title: editTitle, content: editContent, folder: editFolder, doc_type: editDocType, is_pinned: next }); }}
+              style={{ background: editIsPinned ? `${COLORS.accent}20` : "none", border: `1px solid ${editIsPinned ? COLORS.accent : COLORS.border}`, borderRadius: 6, padding: "4px 12px", cursor: "pointer", color: editIsPinned ? COLORS.accent : COLORS.textDim, fontSize: 12, fontWeight: 600 }}>
+              {editIsPinned ? "📌 Pinned" : "Pin doc"}
+            </button>
+          </div>
+        </div>
+
         {/* AI Writer */}
         <div style={{
           background: `${COLORS.accent}08`, border: `1px solid ${COLORS.accent}22`, borderRadius: 8,
@@ -2377,6 +2415,10 @@ const DocsView = ({ docs, onSave, onDelete, theme }) => {
           <option value="all">All Folders</option>
           {allFolders.map((f) => <option key={f} value={f}>{f}</option>)}
         </select>
+        <select value={docTypeFilter} onChange={(e) => setDocTypeFilter(e.target.value)} style={{ ...inputStyle, width: "auto", appearance: "none", cursor: "pointer" }}>
+          <option value="all">All Types</option>
+          {DOC_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
         <button onClick={createNew} style={{ background: COLORS.accent, border: "none", borderRadius: 6, padding: "8px 16px", color: COLORS.bg, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <Icon name="plus" size={14} color={COLORS.bg} /> New Doc
         </button>
@@ -2397,22 +2439,24 @@ const DocsView = ({ docs, onSave, onDelete, theme }) => {
               key={doc.id}
               onClick={() => selectDoc(doc)}
               style={{
-                background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: 8,
+                background: doc.is_pinned ? `${COLORS.accent}0a` : COLORS.surface,
+                border: `1px solid ${doc.is_pinned ? COLORS.accent + "44" : COLORS.border}`, borderRadius: 8,
                 padding: 16, cursor: "pointer", transition: "all 0.15s",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; e.currentTarget.style.borderColor = COLORS.borderLight; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = COLORS.surface; e.currentTarget.style.borderColor = COLORS.border; }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceHover; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = doc.is_pinned ? `${COLORS.accent}0a` : COLORS.surface; }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                 <h3 style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, margin: 0, lineHeight: 1.3, flex: 1 }}>
-                  {doc.title}
+                  {doc.is_pinned && <span style={{ marginRight: 5, fontSize: 12 }}>📌</span>}{doc.title}
                 </h3>
                 <span style={{ fontSize: 10, color: COLORS.textDim, background: COLORS.surfaceActive, padding: "2px 6px", borderRadius: 3, whiteSpace: "nowrap", marginLeft: 8 }}>
                   {doc.folder}
                 </span>
               </div>
+              {(() => { const dt = DOC_TYPES.find(t => t.value === (doc.doc_type || "general")); return dt && dt.value !== "general" ? <span style={{ display: "inline-block", fontSize: 10, fontWeight: 600, color: dt.color, background: dt.color + "18", padding: "2px 7px", borderRadius: 10, marginBottom: 8 }}>{dt.label}</span> : null; })()}
               <p style={{ fontSize: 13, color: COLORS.textMuted, margin: 0, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                {doc.content?.slice(0, 200) || "Empty document"}
+                {doc.summary || doc.content?.slice(0, 200) || "Empty document"}
               </p>
               <div style={{ marginTop: 10, fontSize: 11, color: COLORS.textDim }}>
                 {doc.updated_at ? new Date(doc.updated_at).toLocaleDateString() : ""}
