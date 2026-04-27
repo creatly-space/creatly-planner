@@ -1456,26 +1456,36 @@ ${transcriptText}`
 
 // ─── Project Canvas (Moodboard) ─────────────────────────────────────────────
 const CANVAS_GRID = 20;
-const CANVAS_W = 3000;
-const CANVAS_H = 2000;
+const CANVAS_W = 4000;
+const CANVAS_H = 3000;
 const CANVAS_MIN_W = 4;
 const CANVAS_MIN_H = 3;
 
-const CanvasCard = ({ item, selected, onSelect, onMove, onResize, onDelete, onUpdate, isMainCard }) => {
+const CanvasCard = ({ item, selected, onSelect, onMove, onResize, onDelete, onUpdate, isMainCard, zoom }) => {
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
   const dragStart = useRef(null);
 
   const handleMouseDown = (e) => {
-    if (e.target.closest("[data-resize]") || e.target.closest("[data-delete]") || e.target.tagName === "TEXTAREA") return;
+    if (e.button !== 0) return; // only left click
+    if (e.target.closest("[data-resize]") || e.target.closest("[data-delete]")) return;
+    // Allow textarea clicks without starting drag, but still select
+    if (e.target.tagName === "TEXTAREA") {
+      e.stopPropagation();
+      onSelect(item.id);
+      return;
+    }
     e.stopPropagation();
+    e.preventDefault();
     onSelect(item.id);
     setDragging(true);
     dragStart.current = { mx: e.clientX, my: e.clientY, x: item.x, y: item.y };
   };
 
   const handleResizeDown = (e) => {
+    if (e.button !== 0) return;
     e.stopPropagation();
+    e.preventDefault();
     onSelect(item.id);
     setResizing(true);
     dragStart.current = { mx: e.clientX, my: e.clientY, w: item.w, h: item.h };
@@ -1483,15 +1493,16 @@ const CanvasCard = ({ item, selected, onSelect, onMove, onResize, onDelete, onUp
 
   useEffect(() => {
     if (!dragging && !resizing) return;
+    const z = zoom || 1;
     const handleMove = (e) => {
       if (dragging) {
-        const dx = (e.clientX - dragStart.current.mx) / CANVAS_GRID;
-        const dy = (e.clientY - dragStart.current.my) / CANVAS_GRID;
+        const dx = (e.clientX - dragStart.current.mx) / (CANVAS_GRID * z);
+        const dy = (e.clientY - dragStart.current.my) / (CANVAS_GRID * z);
         onMove(item.id, Math.max(0, Math.round(dragStart.current.x + dx)), Math.max(0, Math.round(dragStart.current.y + dy)));
       }
       if (resizing) {
-        const dw = (e.clientX - dragStart.current.mx) / CANVAS_GRID;
-        const dh = (e.clientY - dragStart.current.my) / CANVAS_GRID;
+        const dw = (e.clientX - dragStart.current.mx) / (CANVAS_GRID * z);
+        const dh = (e.clientY - dragStart.current.my) / (CANVAS_GRID * z);
         onResize(item.id, Math.max(CANVAS_MIN_W, Math.round(dragStart.current.w + dw)), Math.max(CANVAS_MIN_H, Math.round(dragStart.current.h + dh)));
       }
     };
@@ -1499,7 +1510,7 @@ const CanvasCard = ({ item, selected, onSelect, onMove, onResize, onDelete, onUp
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("mouseup", handleUp);
     return () => { window.removeEventListener("mousemove", handleMove); window.removeEventListener("mouseup", handleUp); };
-  }, [dragging, resizing]);
+  }, [dragging, resizing, zoom]);
 
   const px = item.x * CANVAS_GRID;
   const py = item.y * CANVAS_GRID;
@@ -1509,17 +1520,19 @@ const CanvasCard = ({ item, selected, onSelect, onMove, onResize, onDelete, onUp
   return (
     <div
       onMouseDown={handleMouseDown}
+      onClick={(e) => { e.stopPropagation(); onSelect(item.id); }}
       style={{
         position: "absolute", left: px, top: py, width: pw, height: ph,
         background: isMainCard ? `${COLORS.accent}10` : COLORS.surface,
-        border: selected ? `1.5px solid ${COLORS.accent}` : `1px solid ${isMainCard ? COLORS.accent + "44" : COLORS.border}`,
+        border: selected ? `2px solid ${COLORS.accent}` : `1px solid ${isMainCard ? COLORS.accent + "44" : COLORS.border}`,
         borderRadius: 8,
         cursor: dragging ? "grabbing" : "grab",
         overflow: "hidden",
         boxShadow: selected ? `0 0 0 3px ${COLORS.accent}22` : "0 2px 8px rgba(0,0,0,0.3)",
-        transition: dragging || resizing ? "none" : "box-shadow 0.15s",
+        transition: dragging || resizing ? "none" : "box-shadow 0.15s, border 0.15s",
         zIndex: selected ? 10 : isMainCard ? 5 : 1,
         display: "flex", flexDirection: "column",
+        userSelect: "none",
       }}
     >
       {/* Top bar */}
@@ -1539,12 +1552,14 @@ const CanvasCard = ({ item, selected, onSelect, onMove, onResize, onDelete, onUp
         </div>
         {selected && !isMainCard && (
           <button data-delete onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} style={{
-            background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", padding: 2,
-            display: "flex", alignItems: "center",
+            background: `${COLORS.danger}20`, border: `1px solid ${COLORS.danger}44`, color: COLORS.danger,
+            cursor: "pointer", padding: "2px 6px", borderRadius: 4,
+            display: "flex", alignItems: "center", gap: 3, fontSize: 10,
           }}>
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+            <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
               <path d="M2.5 4h9M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5.5 6.5v4M8.5 6.5v4M3.5 4l.5 8a1 1 0 001 1h4a1 1 0 001-1l.5-8" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
             </svg>
+            Delete
           </button>
         )}
       </div>
@@ -1561,18 +1576,19 @@ const CanvasCard = ({ item, selected, onSelect, onMove, onResize, onDelete, onUp
               color: isMainCard ? COLORS.text : COLORS.textMuted, fontSize: 12, lineHeight: 1.5, resize: "none",
               fontFamily: "'Plus Jakarta Sans', sans-serif",
               cursor: isMainCard ? "grab" : "text",
+              userSelect: isMainCard ? "none" : "auto",
             }}
           />
         ) : (
           <div style={{ width: "100%", height: "100%", position: "relative" }}>
             {item.image_url ? (
-              <img src={item.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "0 0 7px 7px" }} />
+              <img src={item.image_url} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "0 0 7px 7px" }} />
             ) : (
               <div style={{
                 width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center",
                 color: COLORS.textDim, fontSize: 12,
               }}>
-                Paste an image URL
+                No image
               </div>
             )}
             {item.label && (
@@ -1593,7 +1609,7 @@ const CanvasCard = ({ item, selected, onSelect, onMove, onResize, onDelete, onUp
         data-resize
         onMouseDown={handleResizeDown}
         style={{
-          position: "absolute", right: 0, bottom: 0, width: 18, height: 18, cursor: "nwse-resize",
+          position: "absolute", right: 0, bottom: 0, width: 20, height: 20, cursor: "nwse-resize",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}
       >
@@ -1612,29 +1628,81 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
   const saveTimers = useRef({});
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [showImageInput, setShowImageInput] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
-  // Main card = auto-generated from project data (not persisted)
+  // Main card position state (not persisted, local only)
+  const [mainPos, setMainPos] = useState({ x: 2, y: 2, w: 14, h: 8 });
+
   const mainCard = {
     id: "__main__",
     type: "text",
-    x: 2, y: 2, w: 14, h: 8,
+    ...mainPos,
     content: `${project.title}\n\n${project.description || "No description"}`,
     color: COLORS.accent,
   };
 
+  // Zoom with Ctrl+Scroll
+  const handleWheel = useCallback((e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setZoom((prev) => {
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        return Math.min(2, Math.max(0.3, prev + delta));
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
+
+  // Middle-click pan
+  const handleCanvasMouseDown = (e) => {
+    if (e.button === 1) { // middle click
+      e.preventDefault();
+      setIsPanning(true);
+      panStart.current = { mx: e.clientX, my: e.clientY, sx: canvasRef.current.scrollLeft, sy: canvasRef.current.scrollTop };
+    }
+  };
+
+  useEffect(() => {
+    if (!isPanning) return;
+    const handleMove = (e) => {
+      if (!canvasRef.current || !panStart.current) return;
+      canvasRef.current.scrollLeft = panStart.current.sx - (e.clientX - panStart.current.mx);
+      canvasRef.current.scrollTop = panStart.current.sy - (e.clientY - panStart.current.my);
+    };
+    const handleUp = () => setIsPanning(false);
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => { window.removeEventListener("mousemove", handleMove); window.removeEventListener("mouseup", handleUp); };
+  }, [isPanning]);
+
   const handleMove = useCallback((id, x, y) => {
-    if (id === "__main__") return;
+    if (id === "__main__") {
+      setMainPos((prev) => ({ ...prev, x, y }));
+      return;
+    }
     onUpdateItem(id, { x, y });
   }, [onUpdateItem]);
 
   const handleResize = useCallback((id, w, h) => {
-    if (id === "__main__") return;
+    if (id === "__main__") {
+      setMainPos((prev) => ({ ...prev, w, h }));
+      return;
+    }
     onUpdateItem(id, { w, h });
   }, [onUpdateItem]);
 
   const handleUpdate = useCallback((id, updates) => {
     if (id === "__main__") return;
-    // Debounce text content saves
     if (updates.content !== undefined) {
       if (saveTimers.current[id]) clearTimeout(saveTimers.current[id]);
       saveTimers.current[id] = setTimeout(() => {
@@ -1654,8 +1722,8 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
   const addTextCard = () => {
     const scrollLeft = canvasRef.current?.scrollLeft || 0;
     const scrollTop = canvasRef.current?.scrollTop || 0;
-    const baseX = Math.round((scrollLeft + 340) / CANVAS_GRID);
-    const baseY = Math.round((scrollTop + 40) / CANVAS_GRID);
+    const baseX = Math.round((scrollLeft / zoom + 340) / CANVAS_GRID);
+    const baseY = Math.round((scrollTop / zoom + 40) / CANVAS_GRID);
     onAddItem({ type: "text", x: baseX, y: baseY, w: 10, h: 6, content: "New note...", color: COLORS.accent });
   };
 
@@ -1663,15 +1731,55 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
     if (!imageUrlInput.trim()) return;
     const scrollLeft = canvasRef.current?.scrollLeft || 0;
     const scrollTop = canvasRef.current?.scrollTop || 0;
-    const baseX = Math.round((scrollLeft + 340) / CANVAS_GRID);
-    const baseY = Math.round((scrollTop + 40) / CANVAS_GRID);
+    const baseX = Math.round((scrollLeft / zoom + 340) / CANVAS_GRID);
+    const baseY = Math.round((scrollTop / zoom + 40) / CANVAS_GRID);
     onAddItem({ type: "image", x: baseX, y: baseY, w: 10, h: 8, image_url: imageUrlInput.trim(), label: "", color: "" });
     setImageUrlInput("");
     setShowImageInput(false);
   };
 
+  // File upload to Supabase Storage
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `canvas/${project.id}/${Date.now()}.${ext}`;
+      const { data, error } = await supabase.storage.from("canvas-images").upload(fileName, file, { cacheControl: "3600", upsert: false });
+      if (error) {
+        console.error("Upload error:", error);
+        // Fallback: try creating bucket first
+        if (error.message?.includes("not found") || error.statusCode === "404") {
+          await supabase.storage.createBucket("canvas-images", { public: true });
+          const { data: d2, error: e2 } = await supabase.storage.from("canvas-images").upload(fileName, file, { cacheControl: "3600", upsert: false });
+          if (e2) { console.error("Upload retry error:", e2); setUploading(false); return; }
+        } else {
+          setUploading(false);
+          return;
+        }
+      }
+      const { data: urlData } = supabase.storage.from("canvas-images").getPublicUrl(fileName);
+      const scrollLeft = canvasRef.current?.scrollLeft || 0;
+      const scrollTop = canvasRef.current?.scrollTop || 0;
+      const baseX = Math.round((scrollLeft / zoom + 340) / CANVAS_GRID);
+      const baseY = Math.round((scrollTop / zoom + 40) / CANVAS_GRID);
+      onAddItem({ type: "image", x: baseX, y: baseY, w: 12, h: 10, image_url: urlData.publicUrl, label: file.name, color: "" });
+    } catch (err) {
+      console.error("Upload failed:", err);
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const zoomPercent = Math.round(zoom * 100);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", borderRadius: 10, overflow: "hidden", border: `1px solid ${COLORS.border}` }}>
+      {/* Hidden file input */}
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} style={{ display: "none" }} />
+
       {/* Toolbar */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1688,50 +1796,54 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button
-            onClick={addTextCard}
-            style={{
-              display: "flex", alignItems: "center", gap: 5,
-              background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6,
-              color: COLORS.text, padding: "5px 12px", cursor: "pointer", fontSize: 12,
-              fontFamily: "inherit",
-            }}
-          >
+          <button onClick={addTextCard} style={{
+            display: "flex", alignItems: "center", gap: 5,
+            background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6,
+            color: COLORS.text, padding: "5px 12px", cursor: "pointer", fontSize: 12, fontFamily: "inherit",
+          }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
               <path d="M3 4h10M5 4v8M11 4v8M4 12h2M10 12h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
             </svg>
             Text
           </button>
 
+          {/* Upload button */}
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} style={{
+            display: "flex", alignItems: "center", gap: 5,
+            background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6,
+            color: COLORS.text, padding: "5px 12px", cursor: uploading ? "wait" : "pointer", fontSize: 12, fontFamily: "inherit",
+            opacity: uploading ? 0.6 : 1,
+          }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M8 10V3M8 3l3 3M8 3L5 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3 10v2a1 1 0 001 1h8a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            {uploading ? "Uploading..." : "Upload"}
+          </button>
+
+          {/* URL input toggle */}
           {!showImageInput ? (
-            <button
-              onClick={() => setShowImageInput(true)}
-              style={{
-                display: "flex", alignItems: "center", gap: 5,
-                background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6,
-                color: COLORS.text, padding: "5px 12px", cursor: "pointer", fontSize: 12,
-                fontFamily: "inherit",
-              }}
-            >
+            <button onClick={() => setShowImageInput(true)} style={{
+              display: "flex", alignItems: "center", gap: 5,
+              background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6,
+              color: COLORS.text, padding: "5px 12px", cursor: "pointer", fontSize: 12, fontFamily: "inherit",
+            }}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
                 <circle cx="5.5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1"/>
                 <path d="M2 11l3.5-3.5L8 10l2.5-3L14 11" stroke="currentColor" strokeWidth="1"/>
               </svg>
-              Image
+              URL
             </button>
           ) : (
             <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
               <input
-                value={imageUrlInput}
-                onChange={(e) => setImageUrlInput(e.target.value)}
+                value={imageUrlInput} onChange={(e) => setImageUrlInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addImageCard()}
-                placeholder="Paste image URL..."
-                autoFocus
+                placeholder="Paste image URL..." autoFocus
                 style={{
                   background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 6,
-                  padding: "5px 10px", color: COLORS.text, fontSize: 12, outline: "none", width: 220,
-                  fontFamily: "inherit",
+                  padding: "5px 10px", color: COLORS.text, fontSize: 12, outline: "none", width: 200, fontFamily: "inherit",
                 }}
               />
               <button onClick={addImageCard} style={{
@@ -1745,10 +1857,28 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
             </div>
           )}
 
-          <div style={{
-            fontSize: 11, color: COLORS.textDim, padding: "0 8px",
-            borderLeft: `1px solid ${COLORS.border}`, marginLeft: 4,
-          }}>
+          {/* Separator */}
+          <div style={{ width: 1, height: 20, background: COLORS.border, marginLeft: 4 }} />
+
+          {/* Zoom controls */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button onClick={() => setZoom((z) => Math.max(0.3, z - 0.1))} style={{
+              background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 4,
+              color: COLORS.text, padding: "3px 8px", cursor: "pointer", fontSize: 14, fontFamily: "inherit", lineHeight: 1,
+            }}>-</button>
+            <span style={{ fontSize: 11, color: COLORS.textMuted, minWidth: 36, textAlign: "center" }}>{zoomPercent}%</span>
+            <button onClick={() => setZoom((z) => Math.min(2, z + 0.1))} style={{
+              background: COLORS.surfaceActive, border: `1px solid ${COLORS.border}`, borderRadius: 4,
+              color: COLORS.text, padding: "3px 8px", cursor: "pointer", fontSize: 14, fontFamily: "inherit", lineHeight: 1,
+            }}>+</button>
+            {zoom !== 1 && (
+              <button onClick={() => setZoom(1)} style={{
+                background: "none", border: "none", color: COLORS.accent, fontSize: 10, cursor: "pointer", padding: "0 4px",
+              }}>Reset</button>
+            )}
+          </div>
+
+          <div style={{ fontSize: 11, color: COLORS.textDim, paddingLeft: 8, borderLeft: `1px solid ${COLORS.border}` }}>
             {items.length} item{items.length !== 1 ? "s" : ""}
           </div>
         </div>
@@ -1757,15 +1887,27 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
       {/* Canvas area */}
       <div
         ref={canvasRef}
-        onClick={() => setSelected(null)}
+        onMouseDown={(e) => {
+          if (e.button === 1) handleCanvasMouseDown(e);
+          if (e.button === 0 && e.target === e.currentTarget?.firstChild || e.target === canvasRef.current) setSelected(null);
+        }}
+        onClick={(e) => {
+          // Deselect when clicking empty canvas
+          if (e.target === canvasRef.current || e.target === canvasRef.current?.firstChild) setSelected(null);
+        }}
         style={{
           flex: 1, overflow: "auto", position: "relative",
           background: COLORS.bg,
-          backgroundImage: `radial-gradient(circle, ${COLORS.borderLight}44 1px, transparent 1px)`,
-          backgroundSize: `${CANVAS_GRID}px ${CANVAS_GRID}px`,
+          cursor: isPanning ? "grabbing" : "default",
         }}
       >
-        <div style={{ width: CANVAS_W, height: CANVAS_H, position: "relative" }}>
+        <div style={{
+          width: CANVAS_W * zoom, height: CANVAS_H * zoom, position: "relative",
+          transformOrigin: "0 0", transform: `scale(${zoom})`,
+          backgroundImage: `radial-gradient(circle, ${COLORS.borderLight}44 1px, transparent 1px)`,
+          backgroundSize: `${CANVAS_GRID}px ${CANVAS_GRID}px`,
+          minWidth: CANVAS_W, minHeight: CANVAS_H,
+        }}>
           {/* Main project card */}
           <CanvasCard
             item={mainCard}
@@ -1776,6 +1918,7 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
             onDelete={handleDelete}
             onUpdate={handleUpdate}
             isMainCard={true}
+            zoom={zoom}
           />
 
           {/* User items */}
@@ -1790,6 +1933,7 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
               onDelete={handleDelete}
               onUpdate={handleUpdate}
               isMainCard={false}
+              zoom={zoom}
             />
           ))}
 
@@ -1811,8 +1955,8 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
         padding: "6px 16px", borderTop: `1px solid ${COLORS.border}`,
         background: COLORS.surface, fontSize: 11, color: COLORS.textDim,
       }}>
-        <span>Grid snap: {CANVAS_GRID}px</span>
-        <span>Click to select &middot; Drag to move &middot; Corner to resize</span>
+        <span>Zoom: {zoomPercent}% &middot; Grid: {CANVAS_GRID}px</span>
+        <span>Drag to move &middot; Corner to resize &middot; Ctrl+Scroll to zoom &middot; Middle-click to pan</span>
       </div>
     </div>
   );
