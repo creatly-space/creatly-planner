@@ -1739,19 +1739,51 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
     setShowImageInput(false);
   };
 
+  // Compress image client-side before upload
+  const compressImage = (file, maxWidth = 1200, quality = 0.8) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let w = img.width;
+        let h = img.height;
+        if (w > maxWidth) {
+          h = Math.round((h * maxWidth) / w);
+          w = maxWidth;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob) => {
+          resolve(blob || file);
+        }, "image/jpeg", quality);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(file); // fallback to original
+      };
+      img.src = url;
+    });
+  };
+
   // Shared upload function for both button and drag-drop
   const uploadImageFile = async (file, dropX, dropY) => {
     if (!file || !file.type.startsWith("image/")) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      // Compress image client-side (max 1200px wide, 80% JPEG quality)
+      const compressed = await compressImage(file, 1200, 0.8);
+      const ext = "jpg"; // always JPEG after compression
       const fileName = `canvas/${project.id}/${Date.now()}.${ext}`;
-      const { data, error } = await supabase.storage.from("canvas-images").upload(fileName, file, { cacheControl: "3600", upsert: false });
+      const { data, error } = await supabase.storage.from("canvas-images").upload(fileName, compressed, { cacheControl: "3600", upsert: false, contentType: "image/jpeg" });
       if (error) {
         console.error("Upload error:", error);
         if (error.message?.includes("not found") || error.statusCode === "404") {
           await supabase.storage.createBucket("canvas-images", { public: true });
-          const { data: d2, error: e2 } = await supabase.storage.from("canvas-images").upload(fileName, file, { cacheControl: "3600", upsert: false });
+          const { data: d2, error: e2 } = await supabase.storage.from("canvas-images").upload(fileName, compressed, { cacheControl: "3600", upsert: false, contentType: "image/jpeg" });
           if (e2) { console.error("Upload retry error:", e2); setUploading(false); return; }
         } else {
           setUploading(false);

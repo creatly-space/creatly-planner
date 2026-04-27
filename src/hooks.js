@@ -699,10 +699,24 @@ export function useCanvasItems(projectId) {
   }, [])
 
   const deleteItem = useCallback(async (id) => {
+    // Find the item to check if it has a storage image
+    const item = items.find(i => i.id === id)
     setItems(prev => prev.filter(i => i.id !== id))
     const { error } = await supabase.from('canvas_items').delete().eq('id', id)
     if (error) console.error('Delete canvas item error:', error)
-  }, [])
+    // Auto-cleanup: remove image from Supabase Storage if it's a stored file
+    if (item?.image_url && item.image_url.includes('/canvas-images/')) {
+      try {
+        const path = item.image_url.split('/canvas-images/')[1]
+        if (path) {
+          const decoded = decodeURIComponent(path)
+          await supabase.storage.from('canvas-images').remove([decoded])
+        }
+      } catch (e) {
+        console.error('Storage cleanup error:', e)
+      }
+    }
+  }, [items])
 
   return { items, loading, addItem, updateItem, deleteItem }
 }
