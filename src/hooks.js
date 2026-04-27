@@ -628,3 +628,81 @@ export function useIdeas() {
 
   return { ideas, loading, saveIdea, deleteIdea }
 }
+
+// ─── Canvas Items Hook ──────────────────────────────────────────────────────
+export function useCanvasItems(projectId) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!projectId) { setItems([]); setLoading(false); return }
+    setLoading(true)
+    const fetchItems = async () => {
+      const { data, error } = await supabase
+        .from('canvas_items')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+      if (!error && data) setItems(data)
+      setLoading(false)
+    }
+    fetchItems()
+  }, [projectId])
+
+  useEffect(() => {
+    if (!projectId) return
+    const channel = supabase
+      .channel(`canvas-${projectId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'canvas_items', filter: `project_id=eq.${projectId}` }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setItems(prev => {
+            if (prev.find(i => i.id === payload.new.id)) return prev
+            return [...prev, payload.new]
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setItems(prev => prev.map(i => i.id === payload.new.id ? payload.new : i))
+        } else if (payload.eventType === 'DELETE') {
+          setItems(prev => prev.filter(i => i.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [projectId])
+
+  const addItem = useCallback(async (item) => {
+    const row = {
+      id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+      project_id: projectId,
+      type: item.type || 'text',
+      x: item.x ?? 2,
+      y: item.y ?? 2,
+      w: item.w ?? 10,
+      h: item.h ?? 6,
+      content: item.content || '',
+      color: item.color || '#7ACF85',
+      image_url: item.image_url || '',
+      label: item.label || '',
+      sort_order: item.sort_order ?? 0,
+      created_at: new Date().toISOString(),
+    }
+    setItems(prev => [...prev, row])
+    const { error } = await supabase.from('canvas_items').upsert(row)
+    if (error) console.error('Add canvas item error:', error)
+    return row
+  }, [projectId])
+
+  const updateItem = useCallback(async (id, updates) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i))
+    const { error } = await supabase.from('canvas_items').update(updates).eq('id', id)
+    if (error) console.error('Update canvas item error:', error)
+  }, [])
+
+  const deleteItem = useCallback(async (id) => {
+    setItems(prev => prev.filter(i => i.id !== id))
+    const { error } = await supabase.from('canvas_items').delete().eq('id', id)
+    if (error) console.error('Delete canvas item error:', error)
+  }, [])
+
+  return { items, loading, addItem, updateItem, deleteItem }
+}
