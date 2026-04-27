@@ -1633,6 +1633,7 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
   const panStart = useRef(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   // Main card position state (not persisted, local only)
   const [mainPos, setMainPos] = useState({ x: 2, y: 2, w: 14, h: 8 });
@@ -1738,11 +1739,9 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
     setShowImageInput(false);
   };
 
-  // File upload to Supabase Storage
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return;
+  // Shared upload function for both button and drag-drop
+  const uploadImageFile = async (file, dropX, dropY) => {
+    if (!file || !file.type.startsWith("image/")) return;
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();
@@ -1750,7 +1749,6 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
       const { data, error } = await supabase.storage.from("canvas-images").upload(fileName, file, { cacheControl: "3600", upsert: false });
       if (error) {
         console.error("Upload error:", error);
-        // Fallback: try creating bucket first
         if (error.message?.includes("not found") || error.statusCode === "404") {
           await supabase.storage.createBucket("canvas-images", { public: true });
           const { data: d2, error: e2 } = await supabase.storage.from("canvas-images").upload(fileName, file, { cacheControl: "3600", upsert: false });
@@ -1761,16 +1759,59 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
         }
       }
       const { data: urlData } = supabase.storage.from("canvas-images").getPublicUrl(fileName);
-      const scrollLeft = canvasRef.current?.scrollLeft || 0;
-      const scrollTop = canvasRef.current?.scrollTop || 0;
-      const baseX = Math.round((scrollLeft / zoom + 340) / CANVAS_GRID);
-      const baseY = Math.round((scrollTop / zoom + 40) / CANVAS_GRID);
-      onAddItem({ type: "image", x: baseX, y: baseY, w: 12, h: 10, image_url: urlData.publicUrl, label: file.name, color: "" });
+      let baseX, baseY;
+      if (dropX !== undefined && dropY !== undefined) {
+        // Use drop position
+        const rect = canvasRef.current?.getBoundingClientRect();
+        const scrollLeft = canvasRef.current?.scrollLeft || 0;
+        const scrollTop = canvasRef.current?.scrollTop || 0;
+        baseX = Math.round(((dropX - (rect?.left || 0) + scrollLeft) / zoom) / CANVAS_GRID);
+        baseY = Math.round(((dropY - (rect?.top || 0) + scrollTop) / zoom) / CANVAS_GRID);
+      } else {
+        const scrollLeft = canvasRef.current?.scrollLeft || 0;
+        const scrollTop = canvasRef.current?.scrollTop || 0;
+        baseX = Math.round((scrollLeft / zoom + 340) / CANVAS_GRID);
+        baseY = Math.round((scrollTop / zoom + 40) / CANVAS_GRID);
+      }
+      onAddItem({ type: "image", x: Math.max(0, baseX), y: Math.max(0, baseY), w: 12, h: 10, image_url: urlData.publicUrl, label: file.name, color: "" });
     } catch (err) {
       console.error("Upload failed:", err);
     }
     setUploading(false);
+  };
+
+  // File input handler
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    await uploadImageFile(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Drag and drop handlers
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingOver) setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set false if leaving the canvas area entirely
+    if (!canvasRef.current?.contains(e.relatedTarget)) {
+      setIsDraggingOver(false);
+    }
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    const files = Array.from(e.dataTransfer?.files || []);
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    for (let i = 0; i < images.length; i++) {
+      await uploadImageFile(images[i], e.clientX + (i * 40), e.clientY + (i * 40));
+    }
   };
 
   const zoomPercent = Math.round(zoom * 100);
@@ -1892,15 +1933,41 @@ const ProjectCanvas = ({ project, items, loading, onAddItem, onUpdateItem, onDel
           if (e.button === 0 && e.target === e.currentTarget?.firstChild || e.target === canvasRef.current) setSelected(null);
         }}
         onClick={(e) => {
-          // Deselect when clicking empty canvas
           if (e.target === canvasRef.current || e.target === canvasRef.current?.firstChild) setSelected(null);
         }}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         style={{
           flex: 1, overflow: "auto", position: "relative",
           background: COLORS.bg,
           cursor: isPanning ? "grabbing" : "default",
         }}
       >
+        {/* Drop overlay */}
+        {isDraggingOver && (
+          <div style={{
+            position: "absolute", inset: 0, zIndex: 100,
+            background: `${COLORS.accent}15`,
+            border: `2px dashed ${COLORS.accent}`,
+            borderRadius: 8,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none",
+          }}>
+            <div style={{
+              background: COLORS.surface, borderRadius: 12, padding: "20px 32px",
+              border: `1px solid ${COLORS.accent}44`,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.accent, textAlign: "center" }}>
+                Drop images here
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4, textAlign: "center" }}>
+                {uploading ? "Uploading..." : "Release to upload"}
+              </div>
+            </div>
+          </div>
+        )}
         <div style={{
           width: CANVAS_W * zoom, height: CANVAS_H * zoom, position: "relative",
           transformOrigin: "0 0", transform: `scale(${zoom})`,
